@@ -1,0 +1,164 @@
+\documentclass{article}
+\usepackage{graphicx}
+\usepackage{vmargin}
+\usepackage{cancel}
+\usepackage{hyperref}
+\setpapersize{A4}
+\setmarginsrb{2.5cm}{2.5cm}{2.4cm}{2.8cm}{12pt}{14pt}{12pt}{22pt}
+\pagestyle{empty}
+
+%%% define \maketitle without the vertical space %%%
+\makeatletter
+\def\@maketitle{%
+  \newpage
+%  \null% DELETED
+%  \vskip 2em% DELETED
+  \begin{center}%
+  \let \footnote \thanks
+    {\LARGE \@title \par}%
+    \vskip 0.75em%
+    {\large
+      \lineskip .5em%
+      \begin{tabular}[t]{c}%
+        \@author
+      \end{tabular}\par}%
+    \vskip 0.75em%
+    {\small \@date}%
+  \end{center}%
+  \par
+  \vskip 1.5em}
+\makeatother
+
+\newlength{\wideitemsep}
+\setlength{\wideitemsep}{.5\itemsep}
+\addtolength{\wideitemsep}{-7pt}
+\let\olditem\item
+\renewcommand{\item}{\setlength{\itemsep}{\wideitemsep}\olditem}
+
+\newcommand{\ttsim}{\raise.17ex\hbox{$\scriptstyle\mathtt{\sim}$}}
+
+\newcommand{\shellcmd}[1]{\indent\indent\texttt{\footnotesize\# #1}\\}
+
+\title{Palomar 200" LFC Reduction Cookbook}
+\author{Micaela Bagley}
+\date{December 2014}
+
+\begin{document}
+\maketitle
+
+\section{Introduction}
+
+\section{Requirements}
+\begin{itemize}
+\item \texttt{numpy
+\item pyfits
+\item pyraf
+\item astropy
+\item scipy
+\item matplotlib
+\item astrometry.net} (see below)
+\end{itemize}
+pip install -r requirements.txt
+
+\section{Reduction}
+
+\section{Astrometry \& Alignment}
+\begin{enumerate}
+\item \texttt{astrometry.py}
+\item \texttt{fix\_astrometry.py}
+\item \texttt{combine.py}
+\item \texttt{align\_images.py}
+\item (\texttt{imalign.pro})
+\end{enumerate}
+\subsection{\texttt{astrometry.py}}
+Get a rough (though very good) approximate WCS solution for each image
+in a WISP parallel field using the Astrometry.net software package.
+Uses the RA,Dec from the headers as an initial guess for each image.
+Set \texttt{--useSE} to use SourceExtractor to detect sources rather than
+Astrometry.net's bundled \texttt{images2xy} program. (Note: if SExtractor
+is used, the xyls output files may be incorrect.)
+
+Optional arguments sent to Astrometry.net software:
+--no-plots
+--no-fits2fits
+--scale-units
+--crpix-center
+--radius
+--ra 
+--dec
+--new-fits
+
+
+
+
+\section{Calibration}
+asdf
+
+\appendix
+\section{Installing Astrometry.net}
+Designate a directory for installation of Astrometry.net and its requirements.
+In the following example, the installation directory is
+\texttt{/home/bagley/Software}. \\
+
+\noindent (Thanks to Michael Gordon (UMN-MIfA) for these installation 
+instructions, which are also provided as a text file (\texttt{astro\_setup.txt})
+
+\subsection{CFITSIO}
+CFITSIO is a library of C and Fortran subroutines for reading and writing
+data files in FITS data format, available from NASA's High Energy
+Astrophysics Science Archive Research Center (HEASARC). 
+
+\shellcmd{mkdir \ttsim/Software/cfitsio}
+\shellcmd{cd \ttsim/Software/cfitsio}
+\shellcmd{wget ftp://heasarc.gsfc.nasa.gov/software/fitsio/c/cfitsio\_latest.tar.gz}
+\shellcmd{tar xzvf cfitsio\_latest.tar.gz}
+\shellcmd{cd cfitsio}
+\shellcmd{./configure --prefix=/home/bagley/Software/cfitsio}
+\shellcmd{make}
+\shellcmd{make install}
+
+\noindent Add the following to your \ttsim/.bashrc and source it: \\
+\shellcmd{export PKG\_CONFIG\_PATH=/home/bagley/Software/cfitsio/lib/pkgconfig}
+
+\noindent Run the following commands, if they print something, you're good: \\
+\shellcmd{pkg-config --cflags cfitsio}
+\shellcmd{pkg-config --libs cfitsio}
+
+\subsection{Astrometry.net}
+If you are running Python in a Virtual Environment, make sure you are 
+in your virtualenv before completing the next steps. \\
+\shellcmd{mkdir \ttsim/Software/astrometry}
+\shellcmd{cd \ttsim/Software/astrometry}
+\shellcmd{wget http://astrometry.net/downloads/astrometry.net-0.46.tar.bz2}
+\shellcmd{tar xjvf astrometry.net-0.46.tar.bz2}
+\shellcmd{cd astrometry.net-0.46}
+\shellcmd{make}
+\shellcmd{make py}
+\shellcmd{make extra}
+\shellcmd{make install INSTALL\_DIR=/home/bagley/Software/astrometry}
+
+\noindent Add the following to your \ttsim/.bashrc and source it: \\
+\shellcmd{export PATH="\$PATH:/home/bagley/Software/astrometry/bin"} 
+
+\noindent In your virtualenv, run astrometry.net as: \\
+\shellcmd{solve-field --no-plot img.fits .....}
+
+\subsection{Index Files}
+Astrometry.net requires index files, processed from an astrometric reference
+catalog such as USNO-B1 or 2MASS. Pre-cooked index files built from the 
+2MASS catalog are available \htmladdnormallink{here}
+{http://data.astrometry.net/4200}. Use the \texttt{wget} script to download
+the full catalog of index files, requiring about 10G of space. Alternatively, 
+use the healpix png's to determine in which tiles your fields of interest
+reside and download only the relevant index files. \\
+
+\noindent The software expects index files to be in 
+\texttt{\ttsim/Software/astrometry/data}. If you don't have enough space
+there, symlimk the \texttt{data} directory to their actual location. \\
+\shellcmd{cd \ttsim/Software/astrometry}
+\shellcmd{rmdir data}
+\shellcmd{ln -s /other/thing/data data}
+
+
+
+\end{document}

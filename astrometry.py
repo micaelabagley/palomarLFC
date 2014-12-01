@@ -63,7 +63,7 @@ def get_RADec(image):
     return decimalRA, decimalDec
 
 
-def solve_image(image, RA, Dec, use_SE=False):
+def solve_image(image, RA, Dec, useSE=False):
     '''Run astrometry.net on an image using the RA,Dec from the
        header as an initial guess.
 
@@ -74,7 +74,7 @@ def solve_image(image, RA, Dec, use_SE=False):
        A low and high pixel scale is given (0.1 - 0.45"/pix). 
        This should cover both binned and unbinned images.
 
-       Set --use_SE to use sextractor to detect sources rather than
+       Set --useSE to use sextractor to detect sources rather than
        astrometry.net's bundled "images2xy" program. 
        Note: if sextractor is used, the xyls output files may be
        incorrectly all (0,0). 
@@ -83,7 +83,7 @@ def solve_image(image, RA, Dec, use_SE=False):
        output files are created. See below for filenames and descriptions
     '''
     new = ''.join([os.path.splitext(image)[0], '_solved.fits'])
-    if use_SE:
+    if useSE:
         cmd = 'solve-field --no-plots --no-fits2fits --use-sextractor ' + \
               '--scale-units app -L 0.1 -H 0.45 --crpix-center --radius 1 ' + \
               '--ra %.4f --dec %.4f --new-fits %s %s' % (RA, Dec, new, image)

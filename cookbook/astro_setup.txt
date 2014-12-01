@@ -1,0 +1,57 @@
+###########
+# CFITSIO #
+###########
+mkdir ~/Software/cfitsio
+cd ~/Software/cfitsio
+wget ftp://heasarc.gsfc.nasa.gov/software/fitsio/c/cfitsio_latest.tar.gz
+tar xzvf cfitsio_latest.tar.gz
+cd cfitsio
+./configure --prefix=/home/astro/bagley/Software/cfitsio
+make
+make install
+
+#add the following to .bashrc and source it:
+export PKG_CONFIG_PATH=/home/astro/bagley/Software/cfitsio/lib/pkgconfig
+
+#run the following commands, if they print something, you're good:
+pkg-config --cflags cfitsio
+pkg-config --libs cfitsio
+
+
+##############
+# ASTROMETRY #
+##############
+# MAKE SURE YOU ARE IN YOUR VIRTUALENV
+mkdir ~/Software/astrometry
+cd ~/Software/astrometry
+wget http://astrometry.net/downloads/astrometry.net-0.46.tar.bz2
+tar xjvf astrometry.net-0.46.tar.bz2
+cd astrometry.net-0.46
+make
+make py
+make extra
+make install INSTALL_DIR=/home/astro/bagley/Software/astrometry
+
+#add the following to .bashrc and source it:
+export PATH="$PATH:/home/astro/bagley/Software/astrometry/bin"
+
+# in virtualenv, run as:
+solve-field --no-plot thing.fits .....
+
+###############
+# INDEX FILES #
+###############
+# put the following files somewhere with lots of space. 
+# each is HUGE, and all together they are ~10G.
+# then symlink them so that the ~/Software/astrometry/data directory leads 
+#   directly to them
+# e.g.
+#       cd ~/Software/astrometry
+#       rmdir data
+#       ln -s /other/thing/data data
+
+# Pre-cooked index files built from the 2MASS catalog are available 
+#    http://data.astrometry.net/4200. 
+# Use the wget script to download the full catalog of index files,
+# or use the healpix png's to determine in which tiles your fields of interest
+# reside and download only the relevant index files.
