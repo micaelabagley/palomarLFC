@@ -413,6 +413,22 @@ photometry.
 \end{figure}
 
 \vspace{4 mm}
+\section{Final Catalog}
+\texttt{make\_final\_catalog.py} runs \textit{SExtractor} a final time
+with detection and analysis thresholds of $2.2\sigma$ so that all sources
+are detected at $\geq5\sigma$. The zero point shift and color terms 
+calculated by \texttt{calibrate\_sdss.py} are applied to all Palomar
+photometry. Palomar sources are matched to the WISP catalog with a 0.5''
+matching radius. The final catalog includes both Palomar and WISP
+RA and Dec and photometry from all available filters.\\
+
+\texttt{usage: make\_final\_catalog.py [-h] wispfield} \\
+
+\texttt{wispfield} $-$ \hangindent=2.7cm the WISP parallel field for which
+to construct the final catalog. This must match the name of the directory that
+contains all relevant FITS files.\\
+
+\vspace{4 mm}
 \appendix
 \section{Installing \An}
 Designate a directory for installation of \An~and its requirements.
