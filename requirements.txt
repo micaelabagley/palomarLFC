@@ -1,0 +1,5 @@
+scipy
+pyfits
+astropy
+matplotlib
+pyraf

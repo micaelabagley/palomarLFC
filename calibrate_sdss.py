@@ -37,7 +37,7 @@ def estimate_exptime(base):
        rejected pixels.
     '''
     # add up exptimes from all images used to create combined image
-    data = np.genfromtxt(base[0]+'.lst', dtype=[('l','S50')])
+    data = np.genfromtxt(base+'.lst', dtype=[('l','S50')])
     ims = data['l']
     exptime = 0.
     for i,v in enumerate(ims):
@@ -72,7 +72,7 @@ def run_SE(images, zp, wispfield, mode='dual'):
         seg_i = base_i + '_calib_seg.fits'
 
         # rough estimates for the exposure times of the combined images
-        exptime_g = estimate_exptime(os.path.splitext(input_g)[0])
+        exptime_g = estimate_exptime(base_g)
         exptime_i = estimate_exptime(base_i)
 
         # detect thresh 2.2
@@ -244,7 +244,7 @@ def calibrate(Palcats, threshold, wispfield, cutoff=0.2):
     make_reg(pal1RA, pal1Dec, reg, 2, 'blue')
 
     # read in SDSS 
-    sdss = read_cat('result.fits')
+    sdss = read_cat(os.path.join(wispfield,'result.fits'))
     # take only the SDSS sources with a S/N >= 10 in both bands
     wSN = np.where((1.0875/(sdss['Err_g']) >= 10.) & 
                    (1.0875/(sdss['Err_i']) >= 10.))
@@ -495,7 +495,7 @@ def main():
     Palomar_catalogs.sort()
 
     # calibrate photometry
-    threshold = 0.5  # arcsec for matching matching
+    threshold = 0.5  # arcsec for matching
     calibrate(Palomar_catalogs, threshold, wispfield)
 
 

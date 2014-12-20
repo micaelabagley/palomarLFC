@@ -141,6 +141,6 @@ if __name__ == '__main__':
                        headers that describe the job (how the image is
                        going to be solved)
     <base>.solved    - exists and contains (binary) 1 if the field solved
-    <base>.match     - a FITS BINTABLE describing the wuad match that 
+    <base>.match     - a FITS BINTABLE describing the quad match that 
                        solved the image
 '''
