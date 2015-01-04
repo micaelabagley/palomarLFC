@@ -23,29 +23,17 @@ import pyfits
 from pyraf.iraf import wregister
 
 
-def run_wregister(wispfield):
-    '''Align combined i image to combined g image using the WCS in 
+def run_wregister(image, reference):
+    '''Align image to reference image using the WCS in 
        the header and IRAF's WREGISTER task
     '''
-    # get list of combined images for this field
-    images = [x for x in [os.path.join(wispfield,'%s_g.fits'%wispfield), \
-               os.path.join(wispfield,'%s_i.fits'%wispfield)] \
-               if x in glob(os.path.join(wispfield,'%s_*.fits'%wispfield))]
-    images.sort()
-    if len(images) == 1:
-        # if there is only 1 combined image, no need to align
-        print '\nOnly 1 combined image for %s (%s). Exiting.' % \
-              (wispfield, images[0])
-        exit()
-
-    # rename old i band image so it is not overwritten
-    os.rename(os.path.join(wispfield,'%s_i.fits'%wispfield), 
-              os.path.join(wispfield,'%s_i_old.fits'%wispfield))
-    images.append(os.path.join(wispfield,'%s_i_old.fits'%wispfield))
+    # rename original image so it is not overwritten
+    old = '%s_old.fits' % os.path.splitext(image)[0]
+    os.rename(image, old)
     
-    params = {'input':'%s[0]'%images[2],
-              'reference':'%s[0]'%images[0],
-              'output':images[1], 
+    params = {'input':'%s[0]'%old, 
+              'reference':'%s[0]'%reference,
+              'output':image, 
               'xmin':'INDEF', 'xmax':'INDEF', 'ymin':'INDEF', 'ymax':'INDEF', 
               'wcs':'world', 'transpose':'no', 'fitgeom':'general',
               'function':'polynomial', 'calctype':'double', 
@@ -67,8 +55,21 @@ def main():
     # remove for creating file names
     wispfield = args.wispfield[0].strip('/')
 
-    # get all scripts and files set up for running wregister in IRAF
-    run_wregister(wispfield)
+    # get list of combined images for this field
+    images = [x for x in [os.path.join(wispfield,'%s_g.fits'%wispfield), \
+               os.path.join(wispfield,'%s_i.fits'%wispfield)] \
+               if x in glob(os.path.join(wispfield,'%s_*.fits'%wispfield))]
+    images.sort()
+    if len(images) == 1:
+        # if there is only 1 combined image, no need to align
+        print '\nOnly 1 combined image for %s (%s). Exiting.' % \
+              (wispfield, images[0])
+        exit()
+    image = os.path.join(wispfield,'%s_g.fits'%wispfield)
+    reference = os.path.join(wispfield,'%s_i.fits'%wispfield)
+
+    # run wregister in IRAF
+    run_wregister(image, reference)
 
 
 if __name__ == '__main__':
