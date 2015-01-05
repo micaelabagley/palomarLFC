@@ -121,7 +121,7 @@ def plot_limit(wispfield):
     ax2.set_title(r'SDSS $i$')
 
     fig.suptitle(wispfield, fontsize=20)
-    fig.savefig('sdss_hist.pdf')
+    fig.savefig(os.path.join(wispfield,'sdss_hist.pdf'))
 
 
 def main():
