@@ -31,7 +31,7 @@ from utils.match_cats import match_cats
 from scipy.optimize import curve_fit
 import sdss_histograms
 from align_images import run_wregister
-
+from datetime import datetime
 
 def read_cat(catfile):
     '''Read in fits tables'''
@@ -46,7 +46,7 @@ def filter_combo(Palim, UVISims):
        determination of the color term.
     '''
     # get Palomar SDSS filters
-    hdr = pyfits.getheader(Palim)
+    hdr = pyfits.getheader(Palim[0])
     Pal_filt = hdr['FILTER'].rstrip("'")
     
     # get UVIS filters
@@ -64,13 +64,14 @@ def filter_combo(Palim, UVISims):
     if Pal_filt == 'g':
         use_filt = [x for x in UVIS_filt if x == 'F600LP' or x == 'F814W']
         use_im = [x for x in UVISims if \
-                  os.path.basename(x).split('_')[0] == 'F600LP'
+                  os.path.basename(x).split('_')[0] == 'F600LP']
     if Pal_filt == 'i':
         use_filt = [x for x in UVIS_filt if x == 'F475X' or x == 'F606W']
         use_im = [x for x in UVISims if \
-                  os.path.basename(x).split('_')[0] == 'F475X'
+                  os.path.basename(x).split('_')[0] == 'F475X']
     
     use_filt.append(Pal_filt)
+    use_filt.sort()
     return use_filt, use_im
  
    
@@ -131,6 +132,10 @@ def make_UVIS_rms(UVISim):
 
 def get_zp(UVISim):
     '''Get zero point for WFC3 UVIS filter'''
+    # obs date for new photometry
+    photdate = '2012-03-06'
+    HSTdate = datetime.strptime(photdate, '%Y-%m-%d')
+
     # get DATE-OBS from header
     obsdate = pyfits.getheader(UVISim)['DATE-OBS']
     date = datetime.strptime(obsdate, '%Y-%m-%d')
@@ -138,19 +143,19 @@ def get_zp(UVISim):
     zp = {}
     if date.date() >= HSTdate.date():
         # new zero points
-        z['F475X'] = 26.1579
-        z['F600LP'] = 25.8746
-        z['F606W'] = 26.0691
-        z['F814W'] = 25.0985
+        zp['F475X'] = 26.1579
+        zp['F600LP'] = 25.8746
+        zp['F606W'] = 26.0691
+        zp['F814W'] = 25.0985
 
     if date.date() < HSTdate.date():
         # old zero points
-        z['F475X'] = 26.15
-        z['F600LP'] = 25.85
-        z['F606W'] = 26.08
-        z['F814W'] = 25.09
+        zp['F475X'] = 26.15
+        zp['F600LP'] = 25.85
+        zp['F606W'] = 26.08
+        zp['F814W'] = 25.09
 
-    return z
+    return zp
 
 
 def run_SE(UVISim, Palim, wispfield):
@@ -159,7 +164,7 @@ def run_SE(UVISim, Palim, wispfield):
     filt = pyfits.getheader(UVISim)['FILTER']
     # pixscales
     UVISps = pyfits.getheader(UVISim)['D001SCAL'] 
-    PALps = pyfits.getheader(Palim)['SECPIX1']
+    Palps = pyfits.getheader(Palim)['SECPIX1']
     # file names
     UVISbase = os.path.splitext(UVISim)[0]
     Palbase = os.path.splitext(Palim)[0]
@@ -186,21 +191,21 @@ def run_SE(UVISim, Palim, wispfield):
     cmd_hst = ('sex %s -c config.sex -CATALOG_NAME %s '% (UVISim, UVIScat) +\
                '-THRESH_TYPE RELATIVE -DETECT_MINAREA 9 -DETECT_THRESH ' +\
                '1.0 -ANALYSIS_THRESH 1.0 -WEIGHT_TYPE MAP_RMS ' +\
-               'WEIGHT_IMAGE %s ' % UVISrms +\
+               '-WEIGHT_IMAGE %s ' % UVISrms +\
                '-PHOT_APERTURES 30 -BACK_SIZE 512 -GAIN %f ' % exptime_UVIS +\
                '-BACK_FILTERSIZE 6,6 -BACKPHOTO_THICK 37.5 ' +\
                '-FILTER_NAME gauss_uvis.conv ' +\
                '-CHECKIMAGE_TYPE SEGMENTATION -CHECKIMAGE_NAME %s '% UVISseg +\
                '-PIXEL_SCALE %f -MAG_ZEROPOINT %f' % (UVISps, filtzp))
-    subprocess.call(cmd_i, shell=True)
+    subprocess.call(cmd_hst, shell=True)
 
     cmd_pal = ('sex %s -c config.sex -CATALOG_NAME %s ' % (Palim, Palcat) +\
                '-THRESH_TYPE RELATIVE -DETECT_MINAREA 5 -DETECT_THRESH ' +\
                '1.0 -ANALYSIS_THRESH 1.0 -WEIGHT_TYPE NONE ' +\
                '-PHOT_APERTURES 30 -BACK_SIZE 64 -GAIN %f ' % exptime_Pal +\
                '-CHECKIMAGE_TYPE SEGMENTATION -CHECKIMAGE_NAME %s '%Palseg +\
-               '-PIXEL_SCALE %f -MAG_ZEROPOINT %f' % (pixscale, Palzp))
-    subprocess.call(cmd, shell=True)
+               '-PIXEL_SCALE %f -MAG_ZEROPOINT %f' % (Palps, Palzp))
+    subprocess.call(cmd_pal, shell=True)
 
 
 def calc_zp(palomar, sdss):
@@ -236,9 +241,9 @@ def y_distance(xx, yy, line):
     return dist
 
 
-def colorterms(diff_g, diff_i, color, axg, axi, cutoff):
+def colorterms(diff, color, ax, cutoff):
     '''Calculate color terms by:
-       1) Fitting a line to the arrays of zero point shifts (diff_*)
+       1) Fitting a line to the array of zero point shifts (diff)
        2) Removing outliers that are farther from the line than cutoff
        3) Re-fit a line to the remaining points
 
@@ -246,37 +251,28 @@ def colorterms(diff_g, diff_i, color, axg, axi, cutoff):
        Indicate points identified as outliers in red.
        Plot both lines for reference. Better line is in black.
 
-       Return the parameters for the better lines for both filters
+       Return the parameters for the better line
        and array indices for the good (non-outlier) sources
     '''
     # fit lines 
-    a_g,line_g = fit_line(color, diff_g)
-    a_i,line_i = fit_line(color, diff_i)
+    a,line = fit_line(color, diff)
     # get distance of each point off of the line
-    dist_g = y_distance(color, diff_g, line_g)
-    dist_i = y_distance(color, diff_i, line_i)
+    dist = y_distance(color, diff, line)
     # fit second line with outliers removed
-    good = np.where((dist_g < cutoff) & (dist_i < cutoff))
-    bad = np.where((dist_g > cutoff) | (dist_i > cutoff))
-    a2_g,line2_g = fit_line(color[good], diff_g[good])
-    a2_i,line2_i = fit_line(color[good], diff_i[good])
+    good = np.where(dist < cutoff)
+    bad = np.where(dist > cutoff)
+    a2,line2 = fit_line(color[good], diff[good])
 
     # plot all points 
-    axg.scatter(color, diff_g, marker='o', c='b', s=20, edgecolor='none')
-    axi.scatter(color, diff_i, marker='o', c='b', s=20, edgecolor='none')
+    ax.scatter(color, diff, marker='o', c='b', s=20, edgecolor='none')
     # plot the points that are outliers
-    axg.scatter(color[bad], diff_g[bad], marker='o', c='r', 
-        s=25, edgecolor='none')
-    axi.scatter(color[bad], diff_i[bad], marker='o', c='r', 
-        s=25, edgecolor='none')
+    ax.scatter(color[bad], diff[bad], marker='o', c='r', s=25,edgecolor='none')
     # plot lines 
-    axg.plot(line_g[0,:], line_g[1,:], 'r', linewidth=1.5)
-    axi.plot(line_i[0,:], line_i[1,:], 'r', linewidth=1.5)
+    ax.plot(line[0,:], line[1,:], 'r', linewidth=1.5)
     # lines fit to points excluding outliers
-    axg.plot(line2_g[0,:], line2_g[1,:], 'k', linewidth=1.5)
-    axi.plot(line2_i[0,:], line2_i[1,:], 'k', linewidth=1.5)
+    ax.plot(line2[0,:], line2[1,:], 'k', linewidth=1.5)
 
-    return a2_g,a2_i,good
+    return a2,good
 
 
 def make_reg(RA, Dec, reg, radius, color, width=1):
@@ -286,7 +282,7 @@ def make_reg(RA, Dec, reg, radius, color, width=1):
             (r,d,radius,color,width))
 
 
-def calibrate(Palcats, threshold, wispfield, cutoff=0.2):
+def calibrate(Palcat, UVIScat, filters, threshold, wispfield, cutoff=0.4):
     '''Calibrate Palomar photometry by:
         1) Match catalog to SDSS
         2) Calculate 0th order zeropoint (no color term)
@@ -299,29 +295,24 @@ def calibrate(Palcats, threshold, wispfield, cutoff=0.2):
                 alpha[1] = offset (zero point)
         7) Plot colorterms and residuals 
     '''
-
     # region file of Palomar objects
-    reg = open('Palomar-SDSS-UVIS.reg', 'w')
+    reg = open(os.path.join(wispfield,'Palomar-SDSS-UVIS.reg'), 'w')
     reg.write('global color=green dashlist=8 3 width=1 font="helvetica 10 '
             'normal roman" select=1 highlite=1 dash=0 fixed=0 edit=1 '
             'move=1 delete=1 include=1 source=1 \n')
     reg.write('fk5 \n')
 
     # read in Palomar catalog
-    if len(Palcats) == 1:
-        pal = read_cat(Palcats[0])
-        palRA = pal.field('X_WORLD')
-        palDec = pal.field('Y_WORLD')
-        palMag = pal.field('MAG_AUTO')
-        palEMag = pal.field('MAGERR_AUTO')
-    else:
-        print 'Not sure what to do with %i Palomar SE catalogs'%len(Palcats)
-        exit()
+    pal = read_cat(Palcat)
+    palRA = pal.field('X_WORLD')
+    palDec = pal.field('Y_WORLD')
+    palMag = pal.field('MAG_AUTO')
+    palEMag = pal.field('MAGERR_AUTO')
     # add all sources to region file
     make_reg(palRA, palDec, reg, 2, 'blue')
 
     # read in UVIS
-    uvis = read_cat(UVIScats[0])
+    uvis = read_cat(UVIScat)
     uvisRA = uvis['X_WORLD']
     uvisDec = uvis['Y_WORLD']
     uvisMag = uvis['MAG_AUTO']
@@ -332,12 +323,17 @@ def calibrate(Palcats, threshold, wispfield, cutoff=0.2):
     # read in SDSS 
     sdss = read_cat(os.path.join(wispfield,'result.fits'))
     # take only the SDSS sources with a S/N >= 10 in both bands
-    wSN = np.where((1.0875/(sdss['Err_g']) >= 10.) & 
-                   (1.0875/(sdss['Err_i']) >= 10.))
-    sdssRA = sdss['ra'][wSN]
-    sdssDec = sdss['dec'][wSN]
-    sdss_g = sdss['g'][wSN]
-    sdss_i = sdss['i'][wSN]
+#    wSN = np.where((1.0875/(sdss['Err_g']) >= 10.) & 
+#                   (1.0875/(sdss['Err_i']) >= 10.))
+    sdssRA = sdss['ra']#[wSN]
+    sdssDec = sdss['dec']#[wSN]
+    # filters is a sorted list: 
+    # 1st element is UVIS filter, 2nd is Palomar filter
+    if filters[1] == 'g':
+        sdssMag = sdss['g']#[wSN]
+    if filters[1] == 'i':
+        sdssMag = sdss['i']#[wSN]
+    
     # make plot of SDSS photometry and show the S/N >= 10 sources
     # output is called sdss_hist.pdf
     sdss_histograms.plot_limit(wispfield)
@@ -357,8 +353,7 @@ def calibrate(Palcats, threshold, wispfield, cutoff=0.2):
     palDec = palDec[match]
     palMag = palMag[match]
     palEMag = palEMag[match]
-    sdss_g = sdss_g[idx[match]]
-    sdss_i = sdss_i[idx[match]]
+    sdssMag = sdssMag[idx[match]]
 
     # match Palomar to WISP UVIS
     idx,separc = match_cats(palRA, palDec, uvisRA, uvisDec)
@@ -370,8 +365,7 @@ def calibrate(Palcats, threshold, wispfield, cutoff=0.2):
     # resize again
     palMag = palMag[match]
     palEMag = palEMag[match]
-    sdss_g = sdss_g[match]
-    sdss_i = sdss_i[match]
+    sdssMag = sdssMag[match]
     uvisMag = uvisMag[idx[match]]
     uvisEMag = uvisEMag[idx[match]]
 
@@ -380,73 +374,66 @@ def calibrate(Palcats, threshold, wispfield, cutoff=0.2):
     ###################
     # set up plots
     fig = plt.figure(figsize=(8,11))
-    gs1 = gridspec.GridSpec(2,2)
-    gs1.update(left=0.15, right=0.9, top=0.93, bottom=0.66, 
-        hspace=0.45, wspace=0.6)
+    gs1 = gridspec.GridSpec(1,2)
+    gs1.update(left=0.12, right=0.94, top=0.9, bottom=0.75,
+        hspace=0.4, wspace=0.5)
     ax1 = plt.subplot(gs1[0,0])
     ax2 = plt.subplot(gs1[0,1])
-    ax3 = plt.subplot(gs1[1,0])
-    ax4 = plt.subplot(gs1[1,1])
-    plt.figtext(0.34, 0.59, 'Calibrated Palomar Photometry', fontsize=15)
+    plt.figtext(0.34, 0.65, 'Calibrated Palomar Photometry', fontsize=15)
     gs2 = gridspec.GridSpec(1,2)
-    gs2.update(left=0.12, right=0.95, top=0.57, bottom=0.44, 
+    gs2.update(left=0.12, right=0.94, top=0.6, bottom=0.45,
         hspace=0.4, wspace=0.5)
-    ax5 = plt.subplot(gs2[0,0])
-    ax6 = plt.subplot(gs2[0,1])
+    ax3 = plt.subplot(gs2[0,0])
+    ax4 = plt.subplot(gs2[0,1])
+
     gs3 = gridspec.GridSpec(1,1)
     gs3.update(left=0.37, right=0.7, top=0.38, bottom=0.25)
-    ax7 = plt.subplot(gs3[0])
-    gs4 = gridspec.GridSpec(1,2)
-    gs4.update(left=0.12, right=0.95, top=0.19, bottom=0.06,
-        hspace=0.4, wspace=0.5)
-    ax8 = plt.subplot(gs4[0,0])
-    ax9 = plt.subplot(gs4[0,1])
+    ax5 = plt.subplot(gs3[0])
 
-    # calculate zero point shifts
-    print 'g band:'
-    zp_g,diff_g = calc_zp(AUTO_g, sdss_g)
-    print 'i band:'
-    zp_i,diff_i = calc_zp(AUTO_i, sdss_i)
-#    AUTO_g = AUTO_g + zp_g
-#    AUTO_i = AUTO_i + zp_i
+
+    # calculate zero point shift
+    print '%s band:'%filters[1]
+    zp,diff = calc_zp(palMag, sdssMag)
+    palMag = palMag + zp
     # plot median zero point shift for filter
-    for ax in [ax1,ax3]:
-        ax.plot([-1,4], [zp_g,zp_g], 'k:', linewidth=1.5)
-    for ax in [ax2,ax4]:
-        ax.plot([-1,4], [zp_i,zp_i], 'k:', linewidth=1.5)
+    for ax in [ax1,ax2]:
+        ax.plot([-1,4], [zp,zp], 'k:', linewidth=1.5)
 
     # calculate percentiles
     # consider only sources within 1sigma of median zero point
-    g_lowsig,g_upsig = np.percentile(diff_g, 15.9),np.percentile(diff_g, 84.1)
-    i_lowsig,i_upsig = np.percentile(diff_i, 15.9),np.percentile(diff_i, 84.1)
-    dist_g = g_upsig - g_lowsig
-    dist_i = i_upsig - i_lowsig
-    w = np.where( (np.abs(diff_g-zp_g) <= dist_g) & 
-                  (np.abs(diff_i-zp_i) <= dist_i))
+    lowsig,upsig = np.percentile(diff,5.9),np.percentile(diff,84.1)
+    dist = upsig - lowsig
+    w = np.where((np.abs(diff-zp) <= dist) & (sdssMag-uvisMag > -2))
     # resize arrays to drop large outliers
-    AUTO_i = AUTO_i[w]
-    sdss_i = sdss_i[w]
-    AUTO_g = AUTO_g[w]
-    sdss_g = sdss_g[w]
-    diff_g = diff_g[w]
-    diff_i = diff_i[w]
+    palMag = palMag[w]
+    sdssMag = sdssMag[w]
+    uvisMag = uvisMag[w]
+    diff = diff[w]
 
     # get color terms
-    # first get color terms from instrumental Palomar colors
-    instr_color = AUTO_g - AUTO_i
-    alpha_g,alpha_i,good = colorterms(diff_g, diff_i, instr_color, 
-                                      ax1, ax2, cutoff)
+    if filters[1] == 'g':
+        instr_color = palMag - uvisMag
+        sdss_color = sdssMag - uvisMag
+        instr_color_pstr = r'$%s_{Pal}-%s$'%(filters[1], filters[0])
+        instr_color_str = '%s_Pal-%s'%(filters[1], filters[0])
+        sdss_color_str = r'$%s_{SDSS}-%s$'%(filters[1], filters[0])
+    if filters[1] == 'i':
+        instr_color = uvisMag - palMag
+        sdss_color = uvisMag - sdssMag
+        instr_color_pstr = r'$%s-%s_{Pal}$'%(filters[0], filters[1])
+        instr_color_str = '%s-%s_Pal'%(filters[0], filters[1])
+        sdss_color_str = r'$%s-%s_{SDSS}$'%(filters[0], filters[1])
+    
+    alpha,good = colorterms(diff, instr_color, ax1, cutoff)
     # now get color terms from SDSS colors (for checking)
-    sdss_color = sdss_g - sdss_i
-    sdss_alpha_g,sdss_alpha_i,sdss_good = colorterms(diff_g,diff_i, sdss_color,
-                                                     ax3, ax4, cutoff)
+    sdss_alpha,sdss_good = colorterms(diff, sdss_color, ax2, cutoff)
 
     # set xaxes so they are the same for all plots as a fn of color
-    for ax in [ax1,ax2,ax3,ax4,ax7,ax8,ax9]:
+    for ax in [ax1,ax2,ax4,ax5]:
         ax.set_xticks([-1,0,1,2,3,4])
         ax.set_xlim(np.min([np.min(sdss_color)-0.5,np.min(instr_color)-0.1]),
                     np.max([np.max(sdss_color)+0.5,np.max(instr_color)+0.1]))
-        if ax == ax7:
+        if ax == ax4:
             ax.set_yticks([-1,0,1,2,3,4])
             ax.set_ylim(
                 np.min([np.min(sdss_color)-0.5,np.min(instr_color)-0.1]),
@@ -454,120 +441,102 @@ def calibrate(Palcats, threshold, wispfield, cutoff=0.2):
 
     # resize arrays once more to remove outliers based on their
     # y-distances from the best fit line
-    AUTO_g = AUTO_g[good]
-    AUTO_i = AUTO_i[good]
-    sdss_g = sdss_g[good]
-    sdss_i = sdss_i[good]
-    instr_color = AUTO_g - AUTO_i
-    sdss_color = sdss_g - sdss_i
+    palMag = palMag[good]
+    sdssMag = sdssMag[good]
+    instr_color = instr_color[good]
+    sdss_color = sdss_color[good]
 
     # plot calibrated photometry
     fig.suptitle(wispfield, fontsize=20)
 
     # calibrate with color terms
-    g_cal_inst = AUTO_g + alpha_g[0]*instr_color + alpha_g[1]
-    i_cal_inst = AUTO_i + alpha_i[0]*instr_color + alpha_i[1]
+    #cal_inst = palMag + alpha[0]*instr_color #+ alpha[1]
+    cal_inst = palMag + alpha[0]*instr_color - (zp - alpha[1])
+    if filters[1] == 'g':
+        cal_inst_color = cal_inst - uvisMag[good]
+        
+    if filters[1] == 'i':
+        cal_inst_color = uvisMag[good] - cal_inst
     
     # color-code plots by SDSS colors
-    w1 = np.where(sdss_g-sdss_i <= 0.5)
-    w2 = np.where((sdss_g-sdss_i > 0.5) & (sdss_g-sdss_i <=1.5))
-    w3 = np.where((sdss_g-sdss_i > 1.5) & (sdss_g-sdss_i <=2.5))
-    w4 = np.where((sdss_g-sdss_i > 2.5) & (sdss_g-sdss_i <=3.5))
-    w5 = np.where(sdss_g-sdss_i > 3.5)
+    w1 = np.where(sdss_color <= 0.5)
+    w2 = np.where((sdss_color > 0.5) & (sdss_color <=1.5))
+    w3 = np.where((sdss_color > 1.5) & (sdss_color <=2.5))
+    w4 = np.where((sdss_color > 2.5) & (sdss_color <=3.5))
+    w5 = np.where(sdss_color > 3.5)
 
     for wcolor,color in zip([w1,w2,w3,w4,w5],['r','#ff7d40','g','b','k']):
-        ax5.scatter(sdss_g[wcolor], g_cal_inst[wcolor], marker='o', 
+        ax3.scatter(sdssMag[wcolor], cal_inst[wcolor], marker='o', 
                     c=color, edgecolor='none')
-        ax6.scatter(sdss_i[wcolor], i_cal_inst[wcolor], marker='o', 
-                    c=color, edgecolor='none')
-        ax7.scatter(sdss_color[wcolor], g_cal_inst[wcolor]-i_cal_inst[wcolor],
+        ax4.scatter(sdss_color[wcolor], cal_inst_color[wcolor],
                     marker='o', c=color, edgecolor='none')
-        ax8.scatter(sdss_color[wcolor], sdss_g[wcolor]-g_cal_inst[wcolor], 
-                    marker='o', c=color, edgecolor='none')
-        ax9.scatter(sdss_color[wcolor], sdss_i[wcolor]-i_cal_inst[wcolor], 
+        ax5.scatter(sdss_color[wcolor], sdssMag[wcolor]-cal_inst[wcolor], 
                     marker='o', c=color, edgecolor='none')
 
     # fit and plot lines of best fit
-    alpha5,line5 = fit_line(sdss_g, g_cal_inst)
-    alpha6,line6 = fit_line(sdss_i, i_cal_inst)
-    alpha7,line7 = fit_line(sdss_color, g_cal_inst-i_cal_inst)
-    alpha8,line8 = fit_line(sdss_color, sdss_g-g_cal_inst)
-    alpha9,line9 = fit_line(sdss_color, sdss_i-i_cal_inst)
+    alpha3,line3 = fit_line(sdssMag, cal_inst)
+    alpha4,line4 = fit_line(sdss_color, cal_inst_color)
+    alpha5,line5 = fit_line(sdss_color, sdssMag-cal_inst)
+    ax3.plot(line3[0,:], line3[1,:], 'k')
+    ax4.plot(line4[0,:], line4[1,:], 'k')
     ax5.plot(line5[0,:], line5[1,:], 'k')
-    ax6.plot(line6[0,:], line6[1,:], 'k')
-    ax7.plot(line7[0,:], line7[1,:], 'k')
-    ax8.plot(line8[0,:], line8[1,:], 'k')
-    ax9.plot(line9[0,:], line9[1,:], 'k')
 
     # plot the one-to-one line
-    for ax in [ax5,ax6,ax7]:
+    for ax in [ax3,ax4]:
         ax.plot([-5,30], [-5,30], 'k:')
     # plot a line at y=0
-    for ax in [ax8,ax9]:
-        ax.plot([-1,5], [0,0], 'k:')
+    ax5.plot([-1,5], [0,0], 'k:')
 
     # plot axes labels and limits 
-    for ax in [ax1,ax2]:
-        ax.set_xlabel(r'$(g-i)_{Pal}$', fontsize=15)
-    for ax in [ax3,ax4,ax7,ax8,ax9]:
-        ax.set_xlabel(r'$(g-i)_{SDSS}$', fontsize=15)
-    for ax in [ax1,ax3]:
-        ax.set_ylabel(r'$g_{SDSS} - g_{Pal}$', fontsize=15)
-    for ax in [ax2,ax4]:
-        ax.set_ylabel(r'$i_{SDSS} - i_{Pal}$', fontsize=15)
-    ax5.set_xlabel('$g_{SDSS}$', fontsize=15)
-    ax5.set_ylabel('$g_{Pal,cal}$', fontsize=15)
-    ax6.set_xlabel('$i_{SDSS}$', fontsize=15)
-    ax6.set_ylabel('$i_{Pal,cal}$', fontsize=15)
-    ax7.set_ylabel(r'$(g-i)_{Pal,cal}$', fontsize=15)
-    ax8.set_ylabel(r'$g_{SDSS} - g_{Pal, cal}$', fontsize=15)
-    ax9.set_ylabel(r'$i_{SDSS} - i_{Pal,cal}$', fontsize=15)
+    ax1.set_xlabel(instr_color_pstr, fontsize=15)
+    for ax in [ax2, ax4, ax5]:
+        ax.set_xlabel(sdss_color_str, fontsize=15)
+    ax3.set_xlabel(r'$%s_{SDSS}$'%filters[1], fontsize=15)
+ 
+    for ax in [ax1, ax2]:
+        ax.set_ylabel(r'$%s_{SDSS}-%s_{Pal}$'%(filters[1],filters[1]), 
+            fontsize=15)
+    ax3.set_ylabel(r'$%s_{Pal,cal}$'%filters[1], fontsize=15)
+    ax4.set_ylabel(r'(%s)$_{cal}$'%instr_color_pstr, fontsize=15)
+    ax5.set_ylabel(r'$%s_{SDSS}-%s_{Pal,cal}$'%(filters[1],filters[1]),
+        fontsize=15)
 
-    ax5.set_xlim(np.min(sdss_g)-1,np.max(sdss_g)+1)
-    ax5.set_ylim(np.min(sdss_g)-1,np.max(sdss_g)+1)
-    ax6.set_xlim(np.min(sdss_i)-1,np.max(sdss_i)+1)
-    ax6.set_ylim(np.min(sdss_i)-1,np.max(sdss_i)+1)
-    ax8.set_ylim(-(np.abs(np.max(sdss_g-g_cal_inst)+0.05)), 
-                 np.abs(np.max(sdss_g-g_cal_inst)+0.05))
-    ax9.set_ylim(-(np.abs(np.max(sdss_i-i_cal_inst)+0.05)), 
-                 np.abs(np.max(sdss_i-i_cal_inst)+0.05))
+    ax3.set_xlim(np.min(sdssMag)-1,np.max(sdssMag)+1)
+    ax3.set_ylim(np.min(sdssMag)-1,np.max(sdssMag)+1)
 
-    for ax in [ax1,ax2,ax3,ax4,ax5,ax6,ax7,ax8,ax9]:
+    for ax in [ax1,ax2,ax3,ax4,ax5]:
         ax.xaxis.set_minor_locator(AutoMinorLocator(2))
         ax.yaxis.set_minor_locator(AutoMinorLocator(2))
 
-    fig.savefig(os.path.join(wispfield, 'sdss_calibration.pdf'))
-    
+    fig.savefig(os.path.join(wispfield, 'sdss_calibration.pdf')) 
+   
     # print out info for calibration
     print '\nCalibration information for %s'%wispfield
-    print '\n%i sources used in fit'%sdss_g.shape[0]
-    print 'stddev(SDSSg - Palg) = %f' % np.std(sdss_g - g_cal_inst)
-    print 'stddev(SDSSi - Pali) = %f' % np.std(sdss_i - i_cal_inst)
-    print '\nResiduals (slopes of linear fits post-calibration): '
-    print '   SDSSg - Palg residuals: %f'%alpha8[0]
-    print '   SDSSi - Pali residuals: %f'%alpha9[0]
+    print '\n%i sources used in fit'%sdssMag.shape[0]
+    print 'stddev(SDSS%s - Pal%s) = %f' % \
+        (filters[1], filters[1], np.std(sdssMag - cal_inst))
+    print '\nResiduals (slope of linear fit post-calibration): '
+    print '   SDSS%s - Pal%s residuals: %f'%(filters[1],filters[1],alpha5[0])
     print '\nCalibration: '
-    print '   m_cal = m_Pal + alpha[0]*(g-i)_Pal + alpha[1],  where:'
-    print '   g: alpha_g[0] = %f, alpha_g[1] = %f'%(alpha_g[0],alpha_g[1])
-    print '   i: alpha_i[0] = %f, alpha_i[1] = %f'%(alpha_i[0],alpha_i[1])
+    print '   m_cal = m_Pal + alpha[0]*%s + alpha[1],  where:'%instr_color_str
+    print '   g: alpha[0] = %f, alpha[1] = %f'%(alpha[0],alpha[1])
     # print to file
     with open(os.path.join(wispfield,'sdss_calibration.dat'), 'w') as catfile:
         catfile.write('# Calibration information for %s\n'%wispfield)
         catfile.write('# \n')
-        catfile.write('# %i sources used in fit\n'%sdss_g.shape[0])
-        catfile.write('# stddev(SDSSg-Palg) = %f\n'%np.std(sdss_g - g_cal_inst))
-        catfile.write('# stddev(SDSSi-Pali) = %f\n'%np.std(sdss_i - i_cal_inst))
+        catfile.write('# %i sources used in fit\n'%sdssMag.shape[0])
+        catfile.write('# stddev(SDSS%s-Pal%s) = %f\n' % \
+            (filters[1], filters[1], np.std(sdssMag - cal_inst)))
         catfile.write('# \n')
-        catfile.write('# Residuals (slopes of linear fits post-calibration):\n')
-        catfile.write('#   SDSSg - Palg: %f\n'%alpha8[0])
-        catfile.write('#   SDSSi - Pali: %f\n'%alpha9[0])
+        catfile.write('# Residuals (slope of linear fit post-calibration):\n')
+        catfile.write('#   SDSS%s - Pal%s: %f\n' % 
+            (filters[1],filters[1],alpha5[0]))
         catfile.write('# \n')
         catfile.write('# Calibration: \n')
-        catfile.write('#    m_cal = m_Pal + alpha[0]*(g-i)_Pal + alpha[1]\n')
+        catfile.write('#    m_cal = m_Pal + alpha[0]*%s + alpha[1]\n' % 
+            instr_color_str)
         catfile.write('# Filter  alpha[0]  alpha[1] \n')
-        catfile.write('  g   %f   %f\n'%(alpha_g[0],alpha_g[1]))
-        catfile.write('  i   %f   %f'%(alpha_i[0],alpha_i[1]))
-    
+        catfile.write('  g   %f   %f\n'%(alpha[0],alpha[1]))
 
 
 def main():
@@ -605,20 +574,27 @@ def main():
             shutil.copy(cpf, wispfield)
             UVISims.append(os.path.join(wispfield, os.path.basename(cpf)))
 
-    # UVIS and Palomar images are too different in size. 
-    # Alignment won't work.
-
     # which filters are available for determination of the color term?
-    color_filters,use_im = filter_combo(Palim, UVISims)
+    use_filts,use_im = filter_combo(Palim, UVISims)
 
     # Run SE on Palomar image in dual image mode with the UVIS image
-    run_SE(use_im[0], Palim[0], wispfield)    
-
+#    run_SE(use_im[0], Palim[0], wispfield)    
 
     ## START HERE
+    # find palcat, find UVIScat names
+    Palcats = glob(os.path.join(wispfield, '%s_*_calib_cat.fits'%wispfield))
+    if len(Palcats) != 1:
+        print 'Not sure what to do with %i Palomar SE catalogs'%len(Palcats)
+        exit()
+    UVIScats = glob(os.path.join(wispfield, '*_drz_calib_cat.fits'))
+    if len(UVIScats) != 1:
+        print 'Not sure what to do with %i UVIS SE catalogs'%len(UVIScats)
+        exit()
+
+    # use_filts is already sorted, so first is UVIS filter, second is Palomar
     # calibrate photometry
-    threshold = 0.5  # arcsec for matching
-    calibrate(Palomar_catalogs, threshold, wispfield)
+    threshold = 0.75  # arcsec for matching
+    calibrate(Palcats[0], UVIScats[0], use_filts, threshold, wispfield)
 
 
 
