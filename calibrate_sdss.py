@@ -216,7 +216,7 @@ def calibrate(Palcats, threshold, wispfield, cutoff=0.2):
     '''
 
     # region file of Palomar objects
-    reg = open('Palomar-SDSS.reg', 'w')
+    reg = open(os.path.join(wispfield,'Palomar-SDSS.reg'), 'w')
     reg.write('global color=green dashlist=8 3 width=1 font="helvetica 10 '
             'normal roman" select=1 highlite=1 dash=0 fixed=0 edit=1 '
             'move=1 delete=1 include=1 source=1 \n')
