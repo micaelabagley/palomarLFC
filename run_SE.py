@@ -41,10 +41,9 @@ def single_SE(images, outstr, params):
         for key,value in params.iteritems():
             args.append(key)
             args.append(value)
+        print args
         # run SE
-        p = subprocess.Popen(args)
-        # if cmd is a string:
-        # subprocess.call(cmd, shell=True)
+        subprocess.check_call(args)
 
 
 def dual_SE(image_g, image_i, outstr, params):
@@ -62,7 +61,7 @@ def dual_SE(image_g, image_i, outstr, params):
         args.append(key)
         args.append(value)
     # run SE
-    p = subprocess.Popen(args)
+    subprocess.check_call(args)
 
 
 def run_SE(images, section, mode='single', updates={}):
@@ -106,6 +105,8 @@ def run_SE(images, section, mode='single', updates={}):
         outstr = 'calib'
     if section == 'Catalog':
         outstr = 'final'
+    if section == 'Astrometry':
+        outstr = 'astr'
 
     if mode == 'single':
         single_SE(images, outstr, params)

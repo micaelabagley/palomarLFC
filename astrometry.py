@@ -113,7 +113,7 @@ def main():
     for image in images:
         RA,Dec = get_RADec(image)
         solve_image(image, RA, Dec, useSE=args.useSE)
-        if os.path.isfile(os.path.splitext(image)[0]+'.solved':
+        if os.path.isfile(os.path.splitext(image)[0]+'.solved'):
             # move all but solved image to astrometric_solns directory
             soln_files = [x for x in glob(os.path.join(wispfield, '*')) if \
                           os.path.splitext(x)[0] == os.path.splitext(image)[0]]

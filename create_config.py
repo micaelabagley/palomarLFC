@@ -7,6 +7,18 @@ Config = ConfigParser.ConfigParser()
 # create config file
 cfg = open('SE_parameters.cfg', 'w')
 
+# add section for Astrometry
+Config.add_section('Astrometry')
+Config.set('Astrometry', '-c', 'config.sex')
+Config.set('Astrometry', '-THRESH_TYPE', 'RELATIVE')
+Config.set('Astrometry', '-DETECT_MINAREA', '5')
+Config.set('Astrometry', '-DETECT_THRESH', '2.2')
+Config.set('Astrometry', '-ANALYSIS_THRESH', '2.2')
+Config.set('Astrometry', '-WEIGHT_TYPE', 'NONE')
+Config.set('Astrometry', '-PHOT_APERTURES', '30')
+Config.set('Astrometry', '-BACK_SIZE', '64')
+Config.set('Astrometry', '-MAG_ZEROPOINT', '0.0')
+
 # add section for calibration
 Config.add_section('Calibration')
 Config.set('Calibration', '-c', 'config.sex')
