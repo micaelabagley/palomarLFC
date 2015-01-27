@@ -3,3 +3,4 @@ pyfits
 astropy
 matplotlib
 pyraf
+git+https://github.com/djones1040/PyPhot.git
