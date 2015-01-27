@@ -11,6 +11,7 @@ import shutil
 import re
 import numpy as np
 import pyfits
+import pywcs
 from astropy.table import Table
 from astropy.io import ascii
 from match_cats import match_cats
@@ -75,6 +76,7 @@ def setup(wispfield):
     for cpf in cpfiles:
         if os.path.exists(cpf):
             shutil.copy(cpf, wispfield)
+    WISPimages = glob(os.path.join(WISPdir, 'F*W_drz.fits'))
 
     # get list of images for this field
     images = [x for x in [os.path.join(wispfield,'%s_g.fits'%wispfield), \
@@ -111,6 +113,10 @@ def setup(wispfield):
         info[filt] = {'cat':cat, 'cterm':cterm[filts == filt], \
                       'zp':zp[filts == filt], 'maglim':maglim[filts == filt], \
                       'sigma':sigma[filts == filt]}
+    if WISPimages:
+        info['WISPim'] = WISPimages[0]
+    else:
+        info['WISPim'] = []
     return info
 
 
@@ -216,21 +222,21 @@ def make_cat(info, WISPfilters, threshold, wispfield):
         wispDec = t1['Y_WORLD']
         ID = t1['NUMBER']
         # get photometry
-        if 'fin_F110.cat' in WISPfilters:
+        if os.path.join(wispfield,'fin_F110.cat') in WISPfilters:
             t110 = read_cat('fin_F110.cat')
             mag_110 = t110['MAG_F1153W']
             emag_110 = t110['MAGERR_AUTO']
         else:
             mag_110 = np.array([99.99]*wispRA.shape[0])
             emag_110 = np.array[(-9.99]*wispRA.shape[0])
-        if 'fin_F140.cat' in WISPfilters:
+        if os.path.join('fin_F140.cat') in WISPfilters:
             t140 = read_cat('fin_F140.cat')
             mag_140 = t140['MAG_F1153W']
             emag_140 = t140['MAGERR_AUTO']
         else:
             mag_140 = np.array([99.99]*wispRA.shape[0])
             emag_140 = np.array[(-9.99]*wispRA.shape[0])
-        if 'fin_F160.cat' in WISPfilters:
+        if os.path.join('fin_F160.cat') in WISPfilters:
             t160 = read_cat('fin_F160.cat')
             mag_160 = t160['MAG_F1153W']
             emag_160 = t160['MAGERR_AUTO']
@@ -280,7 +286,15 @@ def make_cat(info, WISPfilters, threshold, wispfield):
                     format='fixed_width_two_line', position_char='=')
 
         # trim images
-
+        WISPimage = info['WISPim']
+        WISPim,WISPhdr = pyfits.getdata(WISPimage, header=True)
+        cRA = WISPhdr['CRVAL1'] 
+        cDec = WISPhdr['CRVAL2'] 
+        xsize,ysize = 3.,3.
+        for filt in filts
+            Palim = os.path.join(wispfield, '%s_s.fits'%(wispfield,filt))
+            outname = os.path.splitext(Palim)[0] + '_WISP.fits'
+            trim_image(Palim, cRA, cDec, xsize, ysize, outname=)
 
 
 def main():
