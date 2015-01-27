@@ -15,101 +15,19 @@
 ##   -h, --help  show this help message and exit
 #######################################################################
 import argparse
-import numpy as np
+import os
 from glob import glob
+import numpy as np
 import pyfits
-import subprocess,os,shutil
-from astropy.coordinates import SkyCoord,match_coordinates_sky
-import astropy.units as u
-from astropy.table import Table
-from astropy.io import ascii
 import matplotlib.pyplot as plt
 import matplotlib.ticker
 import matplotlib.gridspec as gridspec
 from matplotlib.ticker import AutoMinorLocator
 from utils.match_cats import match_cats
-from scipy.optimize import curve_fit
 import sdss_histograms
+from run_SE import run_SE
+from maglim import find_maglim
 
-def estimate_exptime(base):
-    '''Estimate the effective exposure time of a combined image based on
-       how many images were combined and roughly accounting for 
-       rejected pixels.
-    '''
-    # add up exptimes from all images used to create combined image
-    data = np.genfromtxt(base+'.lst', dtype=[('l','S50')])
-    ims = data['l']
-    exptime = 0.
-    for i,v in enumerate(ims):
-        expt = pyfits.getheader(ims[i])['EXPTIME']
-        exptime += expt
-    # remove 1 or 2 images' worth of time to account for rejected pixels
-    no_ims = len(ims)
-    avg_time = exptime / no_ims
-    if no_ims > 5:
-        exptime = exptime - 2.*avg_time
-    if no_ims <= 5:
-        exptime = exptime - 1.*avg_time
-    return exptime
-
-
-def run_SE(images, zp, wispfield, mode='dual'):
-    '''Run SExtractor on Palomar images using the given zp.
-       
-       Run in dual image mode if both filters are present, or
-       single image mode if only one is present.
-    '''
-    # pixscale
-    pixscale = pyfits.getheader(images[0])['SECPIX1']
-    if mode == 'dual':
-        # file names
-        input_g = os.path.join(wispfield, wispfield+'_g.fits')
-        input_i = os.path.join(wispfield, wispfield+'_i.fits')
-        base_g = os.path.splitext(input_g)[0]
-        base_i = os.path.splitext(input_i)[0]
-        cat_g = base_g + '_calib_cat.fits'
-        cat_i = base_i + '_calib_cat.fits'
-        seg_i = base_i + '_calib_seg.fits'
-
-        # rough estimates for the exposure times of the combined images
-        exptime_g = estimate_exptime(base_g)
-        exptime_i = estimate_exptime(base_i)
-
-        # detect thresh 2.2
-        cmd_i = ('sex %s -c config.sex -CATALOG_NAME %s '% (input_i, cat_i) +\
-                 '-THRESH_TYPE RELATIVE -DETECT_MINAREA 5 -DETECT_THRESH ' +\
-                 '1.0 -ANALYSIS_THRESH 1.0 -WEIGHT_TYPE NONE ' +\
-                 '-PHOT_APERTURES 30 -BACK_SIZE 64 -GAIN %f ' % exptime_i +\
-                 '-CHECKIMAGE_TYPE SEGMENTATION -CHECKIMAGE_NAME %s '% seg_i +\
-                 '-PIXEL_SCALE %f -MAG_ZEROPOINT %f' % (pixscale, zp))
-        subprocess.call(cmd_i, shell=True)
-
-        cmd = ('sex %s, %s -c config.sex ' % (input_i, input_g) +\
-               '-CATALOG_NAME %s -THRESH_TYPE RELATIVE ' % cat_g +\
-               '-DETECT_MINAREA 5 -DETECT_THRESH 1.0 -ANALYSIS_THRESH 1.0 ' +\
-               '-WEIGHT_TYPE NONE -PHOT_APERTURES 30 -BACK_SIZE 64 ' +\
-               '-GAIN %f -CHECKIMAGE_TYPE NONE ' % exptime_g +\
-               '-PIXEL_SCALE %f -MAG_ZEROPOINT %f' % (pixscale, zp))
-        subprocess.call(cmd, shell=True)
-
-    if mode == 'single':
-        for image in images:
-            # names of output files
-            base = os.path.splitext(image)[0]
-            cat = base + '_calib_cat.fits'
-            seg = base + '_calib_seg.fits'
-            exptime = estimate_exptime(base)
-
-            # run SE
-            cmd = ('sex %s -c config.sex -CATALOG_NAME %s ' % (image, cat) +\
-                   '-THRESH_TYPE RELATIVE -DETECT_MINAREA 5 -DETECT_THRESH ' +\
-                   '1.0 -ANALYSIS_THRESH 1.0 -WEIGHT_TYPE NONE ' +\
-                   '-PHOT_APERTURES 30 -BACK_SIZE 64 -GAIN %f ' % exptime +\
-                   '-PIXEL_SCALE %f '%(exptime,pixscale) +\
-                   '-CHECKIMAGE_TYPE SEGMENTATION -CHECKIMAGE_NAME ' % seg +\
-                   '-MAG_ZEROPOINT %f' % zp)
-            subprocess.call(cmd, shell=True)
-        
 
 def read_cat(catfile):
     '''Read in fits tables'''
@@ -306,8 +224,6 @@ def calibrate(Palcats, threshold, wispfield, cutoff=0.2):
     zp_g,diff_g = calc_zp(AUTO_g, sdss_g)
     print 'i band:'
     zp_i,diff_i = calc_zp(AUTO_i, sdss_i)
-#    AUTO_g = AUTO_g + zp_g
-#    AUTO_i = AUTO_i + zp_i
     # plot median zero point shift for filter
     for ax in [ax1,ax3]:
         ax.plot([-1,4], [zp_g,zp_g], 'k:', linewidth=1.5)
@@ -323,12 +239,8 @@ def calibrate(Palcats, threshold, wispfield, cutoff=0.2):
     w = np.where( (np.abs(diff_g-zp_g) <= dist_g) & 
                   (np.abs(diff_i-zp_i) <= dist_i))
     # resize arrays to drop large outliers
-    AUTO_i = AUTO_i[w]
-    sdss_i = sdss_i[w]
-    AUTO_g = AUTO_g[w]
-    sdss_g = sdss_g[w]
-    diff_g = diff_g[w]
-    diff_i = diff_i[w]
+    for arr in [AUTO_g, sdss_g, AUTO_i, sdss_i, diff_g, diff_i]:
+        arr = arr[w]
 
     # get color terms
     # first get color terms from instrumental Palomar colors
@@ -353,10 +265,8 @@ def calibrate(Palcats, threshold, wispfield, cutoff=0.2):
 
     # resize arrays once more to remove outliers based on their
     # y-distances from the best fit line
-    AUTO_g = AUTO_g[good]
-    AUTO_i = AUTO_i[good]
-    sdss_g = sdss_g[good]
-    sdss_i = sdss_i[good]
+    for arr in [AUTO_g, AUTO_i, sdss_g, sdss_i]:
+        arr = arr[good]
     instr_color = AUTO_g - AUTO_i
     sdss_color = sdss_g - sdss_i
 
@@ -392,11 +302,8 @@ def calibrate(Palcats, threshold, wispfield, cutoff=0.2):
     alpha7,line7 = fit_line(sdss_color, g_cal_inst-i_cal_inst)
     alpha8,line8 = fit_line(sdss_color, sdss_g-g_cal_inst)
     alpha9,line9 = fit_line(sdss_color, sdss_i-i_cal_inst)
-    ax5.plot(line5[0,:], line5[1,:], 'k')
-    ax6.plot(line6[0,:], line6[1,:], 'k')
-    ax7.plot(line7[0,:], line7[1,:], 'k')
-    ax8.plot(line8[0,:], line8[1,:], 'k')
-    ax9.plot(line9[0,:], line9[1,:], 'k')
+    for ax,line in zip([ax5,ax6,ax7,ax8,ax9],[line5,line6,line7,line8,line9]):
+        ax.plot(line[0,:], line[1,:], 'k')
 
     # plot the one-to-one line
     for ax in [ax5,ax6,ax7]:
@@ -437,6 +344,13 @@ def calibrate(Palcats, threshold, wispfield, cutoff=0.2):
 
     fig.savefig(os.path.join(wispfield, 'sdss_calibration.pdf'))
     
+    # calculate limiting magnitude for each image
+    segmap = os.path.join(wispfield,'%s_i_calib_seg.fits'%wispfield)
+    maglim_g,sig_g = find_maglim(os.path.join(wispfield,'%s_g.fits'%wispfield, 
+                                 segmap, alpha_g[1], wispfield)
+    maglim_i,sig_i = find_maglim(os.path.join(wispfield,'%s_i.fits'%wispfield,
+                                 segmap, alpha_i[1], wispfield)
+
     # print out info for calibration
     print '\nCalibration information for %s'%wispfield
     print '\n%i sources used in fit'%sdss_g.shape[0]
@@ -449,6 +363,9 @@ def calibrate(Palcats, threshold, wispfield, cutoff=0.2):
     print '   m_cal = m_Pal + alpha[0]*(g-i)_Pal + alpha[1],  where:'
     print '   g: alpha_g[0] = %f, alpha_g[1] = %f'%(alpha_g[0],alpha_g[1])
     print '   i: alpha_i[0] = %f, alpha_i[1] = %f'%(alpha_i[0],alpha_i[1])
+    print '\nLimiting Magnitudes: '
+    print '   g: %f'%maglim_g
+    print '   i: %f'%maglim_i
     # print to file
     with open(os.path.join(wispfield,'sdss_calibration.dat'), 'w') as catfile:
         catfile.write('# Calibration information for %s\n'%wispfield)
@@ -463,9 +380,12 @@ def calibrate(Palcats, threshold, wispfield, cutoff=0.2):
         catfile.write('# \n')
         catfile.write('# Calibration: \n')
         catfile.write('#    m_cal = m_Pal + alpha[0]*(g-i)_Pal + alpha[1]\n')
-        catfile.write('# Filter  alpha[0]  alpha[1] \n')
-        catfile.write('  g   %f   %f\n'%(alpha_g[0],alpha_g[1]))
-        catfile.write('  i   %f   %f'%(alpha_i[0],alpha_i[1]))
+        catfile.write('# \n')
+        catfile.write('# Filter   alpha[0]   alpha[1]    maglim    sigma \n')
+        catfile.write('  g   %f   %f   %f    %f\n' % 
+                        (alpha_g[0],alpha_g[1],maglim_g,sig_g))
+        catfile.write('  i   %f   %f   %f    %f' % 
+                        (alpha_i[0],alpha_i[1],maglim_i,sig_i))
     
 
 def main():
@@ -487,16 +407,15 @@ def main():
     print images
     print ' '
 
-    # Run SE on all Palomar images in dual image mode if both
-    # filters are present
-    run_SE(images, 0., wispfield)    
-    Palomar_catalogs = glob(os.path.join(wispfield, 
-        '%s_*_calib_cat.fits' % wispfield))
-    Palomar_catalogs.sort()
+    # Run SE on all Palomar images in dual image mode 
+    run_SE(images, 'Calibration', mode='dual')    
+
+    Palcats = glob(os.path.join(wispfield, '%s_*_calib_cat.fits' % wispfield))
+    Palcats.sort()
 
     # calibrate photometry
     threshold = 0.5  # arcsec for matching
-    calibrate(Palomar_catalogs, threshold, wispfield)
+    calibrate(Palcats, threshold, wispfield)
 
 
 
