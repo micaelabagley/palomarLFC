@@ -17,7 +17,8 @@ def estimate_effective_gain(image):
     Palomar_gain = pyfits.getheader(image)['GAIN']
     ims = pyfits.getheader(image)['IMCMB*']
     exptime = 0.
-    for i in range(len(ims)):
+    Nim = len(ims)
+    for i in range(Nim):
         exptime += pyfits.getheader(os.path.join(wispfield,ims[i]))['exptime']
     gain = Palomar_gain * Nim
     return gain
@@ -85,7 +86,6 @@ def run_SE(images, section, mode='single', updates={}):
     '''
     Config = ConfigParser.ConfigParser()
     Config.read('SE_parameters.cfg')
-    
     # the sections are 
     #   Calibration - for calibrating the images
     #   Catalog - for creating the final catalog               
@@ -97,7 +97,7 @@ def run_SE(images, section, mode='single', updates={}):
     # add some parameters
     # pixscale
     pixscale = pyfits.getheader(images[0])['SECPIX1']
-    params['pixel_scale'] = '%f'%pixscale
+    params['-pixel_scale'] = '%f'%pixscale
 
     # override any parameters or add new ones?
     params.update(updates)
