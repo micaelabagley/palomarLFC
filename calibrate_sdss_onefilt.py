@@ -23,7 +23,7 @@ import matplotlib.pyplot as plt
 import matplotlib.ticker
 import matplotlib.gridspec as gridspec
 from matplotlib.ticker import AutoMinorLocator
-from utils.match_cats import match_cats
+from match_cats import match_cats
 import sdss_histograms
 from run_SE import run_SE
 from maglim import find_maglim

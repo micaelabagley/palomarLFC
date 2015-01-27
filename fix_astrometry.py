@@ -23,7 +23,7 @@ from astropy.coordinates import SkyCoord,match_coordinates_sky
 import astropy.units as u
 from astropy.table import Table
 from astropy.io import ascii
-from utils.match_cats import match_cats
+from match_cats import match_cats
 from pyraf import iraf
 
 

@@ -27,7 +27,7 @@ import matplotlib.pyplot as plt
 import matplotlib.ticker
 import matplotlib.gridspec as gridspec
 from matplotlib.ticker import AutoMinorLocator
-from utils.match_cats import match_cats
+from match_cats import match_cats
 from scipy.optimize import curve_fit
 import sdss_histograms
 from align_images import run_wregister

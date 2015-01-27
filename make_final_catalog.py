@@ -13,7 +13,7 @@ import numpy as np
 import pyfits
 from astropy.table import Table
 from astropy.io import ascii
-from utils.match_cats import match_cats
+from match_cats import match_cats
 from run_SE import run_SE
 from maglim import find_maglim
 
