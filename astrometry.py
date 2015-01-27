@@ -35,8 +35,8 @@ def get_images(wispfield):
 
     else:
         # any files that have already been solved
-        complete = [os.path.splitext(os.path.basename(x))[0] for x in \
-            glob(os.path.join(wispfield, 'astrometric_solns', '*.solved'))]
+        complete = [os.path.splitext(os.path.basename(x))[0]+'_solved' for x \
+            in glob(os.path.join(wispfield, 'astrometric_solns', '*.solved'))]
         # get list of images that have yet to be solved
         images = [x for x in glob(os.path.join(wispfield, '*.fits')) if not \
                   os.path.basename(x).startswith(('result','Bias','Zero')) and \
@@ -112,15 +112,15 @@ def main():
     images = get_images(wispfield)
     for image in images:
         RA,Dec = get_RADec(image)
-        solve_image(image, RA, Dec, use_SE=args.useSE)
-        
-        # move all but solved image to astrometric_solns directory
-        soln_files = [x for x in glob(os.path.join(wispfield, '*')) if \
-                      os.path.splitext(x)[0] == os.path.splitext(image)[0]]
-        soln_files.append(os.path.splitext(image)[0] + '-indx.xyls')
-        for f in soln_files:
-            shutil.move(f, os.path.join(wispfield, 'astrometric_solns'))
-
+        solve_image(image, RA, Dec, useSE=args.useSE)
+        if os.path.isfile(os.path.splitext(image)[0]+'.solved':
+            # move all but solved image to astrometric_solns directory
+            soln_files = [x for x in glob(os.path.join(wispfield, '*')) if \
+                          os.path.splitext(x)[0] == os.path.splitext(image)[0]]
+            soln_files.append(os.path.splitext(image)[0] + '-indx.xyls')
+            for f in soln_files:
+                shutil.move(f, os.path.join(wispfield, 'astrometric_solns'))
+    
     print '\nCheck your /tmp directory'
     print 'Delete any tmp.sanitized.xxxx files in your /tmp directory.\n'
 
