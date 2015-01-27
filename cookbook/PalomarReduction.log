@@ -1,4 +1,4 @@
-This is pdfTeX, Version 3.1415926-2.5-1.40.14 (TeX Live 2013/Debian) (format=pdflatex 2014.8.28)  20 DEC 2014 03:47
+This is pdfTeX, Version 3.1415926-2.5-1.40.14 (TeX Live 2013/Debian) (format=pdflatex 2014.8.28)  24 JAN 2015 13:07
 entering extended mode
  restricted \write18 enabled.
  %&-line parsing enabled.
@@ -312,364 +312,364 @@ File: omscmr.fd 1999/05/25 v2.5h Standard LaTeX font definitions
 LaTeX Font Info:    Font shape `OMS/cmr/m/n' in size <10> not available
 (Font)              Font shape `OMS/cmsy/m/n' tried instead on input line 75.
 
-Overfull \hbox (12.9036pt too wide) in paragraph at lines 93--98
+Overfull \hbox (12.9036pt too wide) in paragraph at lines 94--99
 \OT1/cmr/m/n/10 The first step is to sort the data from a night of ob-ser-va-ti
 ons. The \OT1/cmtt/m/n/10 extract[]header \OT1/cmr/m/n/10 mod-ule in \OT1/cmtt/
 m/n/10 sort[]images.py
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 93--98
+Underfull \hbox (badness 10000) in paragraph at lines 94--99
 
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 99--100
+Underfull \hbox (badness 10000) in paragraph at lines 100--101
 
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 101--103
+Underfull \hbox (badness 10000) in paragraph at lines 102--104
 
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 104--111
+Underfull \hbox (badness 10000) in paragraph at lines 105--112
 
  []
 
 [1
 
 {/var/lib/texmf/fonts/map/pdftex/updmap/pdftex.map}]
-Overfull \hbox (2.51637pt too wide) in paragraph at lines 125--126
+Overfull \hbox (2.51637pt too wide) in paragraph at lines 126--127
 []\OT1/cmtt/m/n/10 usage: reduction.py [-h] [--biasdir BIASDIR] [--darkdir DARK
 DIR] [--flatdir FLATDIR]
  []
 
 
-Overfull \hbox (4.62523pt too wide) in paragraph at lines 125--126
+Overfull \hbox (4.62523pt too wide) in paragraph at lines 126--127
 \OT1/cmtt/m/n/10 [--SaveSteps] [--LogSteps LOGSTEPS] [--DarkSubtract] [--UseBia
 s USEBIAS]
  []
 
 
-Overfull \hbox (15.12514pt too wide) in paragraph at lines 125--126
+Overfull \hbox (15.12514pt too wide) in paragraph at lines 126--127
 \OT1/cmtt/m/n/10 [--UseDark USEDARK] [--UseFlat [USEFLAT [USEFLAT ...]]] direct
 ory binning 
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 125--126
+Underfull \hbox (badness 10000) in paragraph at lines 126--127
 
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 127--128
+Underfull \hbox (badness 10000) in paragraph at lines 128--129
 
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 129--131
+Underfull \hbox (badness 10000) in paragraph at lines 130--132
 
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 132--134
+Underfull \hbox (badness 10000) in paragraph at lines 133--135
 
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 135--137
+Underfull \hbox (badness 10000) in paragraph at lines 136--138
 
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 138--140
+Underfull \hbox (badness 10000) in paragraph at lines 139--141
 
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 141--144
+Underfull \hbox (badness 10000) in paragraph at lines 142--145
 
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 145--148
+Underfull \hbox (badness 10000) in paragraph at lines 146--149
 
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 149--151
+Underfull \hbox (badness 10000) in paragraph at lines 150--152
 
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 152--153
+Underfull \hbox (badness 10000) in paragraph at lines 153--154
 
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 154--155
+Underfull \hbox (badness 10000) in paragraph at lines 155--156
 
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 156--158
+Underfull \hbox (badness 10000) in paragraph at lines 157--159
 
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 159--166
+Underfull \hbox (badness 10000) in paragraph at lines 160--167
 
  []
 
 
-Overfull \hbox (20.29657pt too wide) in paragraph at lines 182--183
+Overfull \hbox (20.29657pt too wide) in paragraph at lines 183--184
 []\OT1/cmtt/m/n/10 reduction.py --UseBias march2012/bias/Bias[]unbinned.fits --
 flatdir march2012/flats
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 182--183
+Underfull \hbox (badness 10000) in paragraph at lines 183--184
 
  []
 
 [2]
-Underfull \hbox (badness 10000) in paragraph at lines 197--204
+Underfull \hbox (badness 10000) in paragraph at lines 198--205
 
  []
 
 LaTeX Font Info:    Font shape `OT1/cmtt/bx/n' in size <12> not available
-(Font)              Font shape `OT1/cmtt/m/n' tried instead on input line 212.
+(Font)              Font shape `OT1/cmtt/m/n' tried instead on input line 213.
 
-Underfull \hbox (badness 10000) in paragraph at lines 213--217
-
- []
-
-
-Underfull \hbox (badness 10000) in paragraph at lines 218--219
+Underfull \hbox (badness 10000) in paragraph at lines 214--218
 
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 220--223
+Underfull \hbox (badness 10000) in paragraph at lines 219--220
 
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 224--227
+Underfull \hbox (badness 10000) in paragraph at lines 221--224
 
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 228--234
+Underfull \hbox (badness 10000) in paragraph at lines 225--228
 
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 245--249
+Underfull \hbox (badness 10000) in paragraph at lines 229--235
 
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 251--259
+Underfull \hbox (badness 10000) in paragraph at lines 246--250
+
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 252--260
 
  []
 
 [3]
-Underfull \hbox (badness 10000) in paragraph at lines 260--261
+Underfull \hbox (badness 10000) in paragraph at lines 261--262
 
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 262--265
+Underfull \hbox (badness 10000) in paragraph at lines 263--266
 
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 266--271
+Underfull \hbox (badness 10000) in paragraph at lines 267--272
 
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 285--292
+Underfull \hbox (badness 10000) in paragraph at lines 286--293
 
  []
 
 
-Overfull \hbox (28.76614pt too wide) in paragraph at lines 294--295
+Overfull \hbox (28.76614pt too wide) in paragraph at lines 295--296
 []\OT1/cmtt/m/n/10 usage: combine.py [-h] [--rejection none,minmax,ccdclip,crre
 ject,sigclip,avsigclip,pclip] 
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 294--295
+Underfull \hbox (badness 10000) in paragraph at lines 295--296
 
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 296--299
+Underfull \hbox (badness 10000) in paragraph at lines 297--300
 
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 300--303
+Underfull \hbox (badness 10000) in paragraph at lines 301--304
 
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 304--306
+Underfull \hbox (badness 10000) in paragraph at lines 305--307
 
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 310--322
+Underfull \hbox (badness 10000) in paragraph at lines 311--323
 
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 323--330
+Underfull \hbox (badness 10000) in paragraph at lines 324--331
 
  []
 
 [4]
-Underfull \hbox (badness 10000) in paragraph at lines 331--335
+Underfull \hbox (badness 10000) in paragraph at lines 332--336
 
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 336--342
+Underfull \hbox (badness 10000) in paragraph at lines 337--343
 
  []
 
 
-Overfull \hbox (35.06706pt too wide) in paragraph at lines 351--355
+Overfull \hbox (35.06706pt too wide) in paragraph at lines 352--356
 \OT1/cmr/m/n/10 For each field, the Palo-mar pho-tom-e-try is cal-i-brated agai
 nst the SDSS cat-a-log (\OT1/cmtt/m/n/10 result.fits\OT1/cmr/m/n/10 ). \OT1/cmt
 t/m/n/10 calibrate[]sdss.py
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 351--355
+Underfull \hbox (badness 10000) in paragraph at lines 352--356
 
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 356--357
+Underfull \hbox (badness 10000) in paragraph at lines 357--358
 
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 358--361
+Underfull \hbox (badness 10000) in paragraph at lines 359--362
 
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 363--370
+Underfull \hbox (badness 10000) in paragraph at lines 364--371
 
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 371--382
+Underfull \hbox (badness 10000) in paragraph at lines 372--383
 
  []
 
-<sdss_calibration.pdf, id=126, 578.16pt x 794.97pt>
+<sdss_calibration.pdf, id=128, 578.16pt x 794.97pt>
 File: sdss_calibration.pdf Graphic file (type pdf)
  <use sdss_calibration.pdf>
-Package pdftex.def Info: sdss_calibration.pdf used on input line 403.
+Package pdftex.def Info: sdss_calibration.pdf used on input line 404.
 (pdftex.def)             Requested size: 462.52863pt x 635.97687pt.
 
-Overfull \hbox (3.79889pt too wide) in paragraph at lines 403--411
+Overfull \hbox (3.79889pt too wide) in paragraph at lines 404--412
  [] 
  []
 
 
-LaTeX Warning: Float too large for page by 59.82057pt on input line 413.
+LaTeX Warning: Float too large for page by 59.82057pt on input line 414.
 
 [5] [6 <./sdss_calibration.pdf>]
-Underfull \hbox (badness 10000) in paragraph at lines 417--424
+Underfull \hbox (badness 10000) in paragraph at lines 418--425
 
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 425--426
+Underfull \hbox (badness 10000) in paragraph at lines 426--427
 
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 427--430
+Underfull \hbox (badness 10000) in paragraph at lines 428--431
 
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 434--437
+Underfull \hbox (badness 10000) in paragraph at lines 435--438
 
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 446--454
+Underfull \hbox (badness 10000) in paragraph at lines 447--455
 
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 455--457
+Underfull \hbox (badness 10000) in paragraph at lines 456--458
 
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 458--461
+Underfull \hbox (badness 10000) in paragraph at lines 459--462
 
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 463--474
+Underfull \hbox (badness 10000) in paragraph at lines 464--475
 
  []
 
 [7]
-Underfull \hbox (badness 10000) in paragraph at lines 475--477
+Underfull \hbox (badness 10000) in paragraph at lines 476--478
 
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 478--480
+Underfull \hbox (badness 10000) in paragraph at lines 479--481
 
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 482--489
+Underfull \hbox (badness 10000) in paragraph at lines 483--490
 
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 490--496
+Underfull \hbox (badness 10000) in paragraph at lines 491--497
 
  []
 
 
-Overfull \hbox (11.90901pt too wide) detected at line 508
+Overfull \hbox (11.90901pt too wide) detected at line 509
 []
  []
 
-Package atveryend Info: Empty hook `BeforeClearDocument' on input line 520.
+Package atveryend Info: Empty hook `BeforeClearDocument' on input line 521.
 [8]
-Package atveryend Info: Empty hook `AfterLastShipout' on input line 520.
+Package atveryend Info: Empty hook `AfterLastShipout' on input line 521.
  (./PalomarReduction.aux)
-Package atveryend Info: Executing hook `AtVeryEndDocument' on input line 520.
-Package atveryend Info: Executing hook `AtEndAfterFileList' on input line 520.
+Package atveryend Info: Executing hook `AtVeryEndDocument' on input line 521.
+Package atveryend Info: Executing hook `AtEndAfterFileList' on input line 521.
 Package rerunfilecheck Info: File `PalomarReduction.out' has not changed.
 (rerunfilecheck)             Checksum: D7FD8D97034B2E8B234ACA86698EA3FC;1084.
-Package atveryend Info: Empty hook `AtVeryVeryEnd' on input line 520.
+Package atveryend Info: Empty hook `AtVeryVeryEnd' on input line 521.
  ) 
 Here is how much of TeX's memory you used:
- 5819 strings out of 495028
- 83916 string characters out of 6181497
+ 5820 strings out of 495028
+ 83927 string characters out of 6181497
  170452 words of memory out of 5000000
  8947 multiletter control sequences out of 15000+600000
  12092 words of font info for 46 fonts, out of 8000000 for 9000
  14 hyphenation exceptions out of 8191
- 29i,8n,28p,489b,375s stack positions out of 5000i,500n,10000p,200000b,80000s
+ 29i,8n,28p,489b,385s stack positions out of 5000i,500n,10000p,200000b,80000s
 </usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmbx12.pfb></us
 r/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmbxti10.pfb></usr/sh
 are/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmmi10.pfb></usr/share/te
@@ -692,10 +692,10 @@ public/amsfonts/cm/cmti10.pfb></usr/share/texlive/texmf-dist/fonts/type1/public
 nts/cm/cmtt12.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm
 /cmtt8.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmtt9.
 pfb>
-Output written on PalomarReduction.pdf (8 pages, 311398 bytes).
+Output written on PalomarReduction.pdf (8 pages, 314756 bytes).
 PDF statistics:
- 325 PDF objects out of 1000 (max. 8388607)
- 213 compressed objects within 3 object streams
- 34 named destinations out of 1000 (max. 500000)
+ 327 PDF objects out of 1000 (max. 8388607)
+ 215 compressed objects within 3 object streams
+ 35 named destinations out of 1000 (max. 500000)
  150 words of extra memory for PDF output out of 10000 (max. 10000000)
 
