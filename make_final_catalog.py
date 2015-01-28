@@ -17,7 +17,7 @@ from astropy.io import ascii
 from match_cats import match_cats
 from run_SE import run_SE
 from maglim import find_maglim
-
+from trim_images import trim_image
 
 def get_filter(image):
     hdr = pyfits.getheader(image)
@@ -27,20 +27,26 @@ def get_filter(image):
 def read_cat(catfile):
     '''Read in fits tables or ascii text files'''
     extension = os.path.splitext(catfile)[1]
-    if extension == 'fits':
+    if extension == '.fits':
         f = pyfits.open(catfile)
         cat = f[1].data
         f.close()
-    if extension == 'cat':
+    if extension == '.cat':
         cat = Table.read(catfile, format='ascii')
     return cat
 
 
-def make_reg(RA, Dec, reg, radius, color, width=1):
+def make_reg(RA, Dec, reg, radius, color, width=1, nsource=np.array([])):
     """Add circular regions in fk5 coords to a ds9 region file"""
-    for r,d in zip(RA, Dec):
-        reg.write('circle(%.6f,%.6f,%f") # color=%s width=%i\n' % \
-            (r,d,radius,color,width))
+    if nsource.shape[0] != 0:
+        for r,d,nsrc in zip(RA, Dec, nsource):
+            reg.write('circle(%.6f,%.6f,%f") # color=%s width=%i text={%i}\n'%\
+                (r,d,radius,color,width,nsrc))
+    else:
+        for r,d in zip(RA, Dec):
+            reg.write('circle(%.6f,%.6f,%f") # color=%s width=%i\n' % \
+                (r,d,radius,color,width))
+
 
 
 def fix_datasec(image):
@@ -54,6 +60,19 @@ def fix_datasec(image):
     hdr['DATASEC'] = '[1:%i,1:%i]' % (nx1-1, nx2-1)
     pyfits.writeto(image, im, hdr, clobber=True)
     
+
+def total_exptime(image, wispfield):
+    '''Add total exptime of combined images to the header'''
+    im,hdr = pyfits.getdata(image, header=True)
+    ims = hdr['IMCMB*']
+    texptime = 0.
+    Nim = len(ims)
+    for i in range(Nim):
+        texptime += pyfits.getheader(os.path.join(wispfield,ims[i]))['exptime']
+    hdr.insert(18, ('TEXPTIME', texptime,
+                           'Total EXPTIME of combined images'))
+    pyfits.writeto(image, im, hdr, clobber=True)
+
 
 def setup(wispfield):
     '''Perform miscellaneous tasks to set up for the construction 
@@ -73,9 +92,9 @@ def setup(wispfield):
     WISPfiles = [os.path.join(WISPdir,'fin_F110.cat'), \
                  os.path.join(WISPdir,'fin_F160.cat'), \
                  os.path.join(WISPdir,'fin_F140.cat') ]
-    for cpf in cpfiles:
-        if os.path.exists(cpf):
-            shutil.copy(cpf, wispfield)
+    for wispf in WISPfiles:
+        if os.path.exists(wispf):
+            shutil.copy(wispf, wispfield)
     WISPimages = glob(os.path.join(WISPdir, 'F*W_drz.fits'))
 
     # get list of images for this field
@@ -91,6 +110,9 @@ def setup(wispfield):
         SEmode = 'dual'
     else:
         print "Don't know what to do with %i images" % len(images)
+    print '\n--------------------------------------------'
+    print 'Running %s in %s image mode'%([x for x in images],SEmode)
+    print '--------------------------------------------\n'
     run_SE(images, 'Catalog', mode=SEmode)
 
     # read in calibration info for this field: 
@@ -106,8 +128,15 @@ def setup(wispfield):
     # dict of info for each filter
     info = {}
     for image in images:
+        # get filter
+        filt = get_filter(image)
+
         # fix the DATASEC keyword in the headers
         fix_datasec(image)
+
+        # add total exptime of all combined images to header
+        total_exptime(image, wispfield)
+
         # fill in info for image
         cat = os.path.splitext(image)[0] + '_final_cat.fits'
         info[filt] = {'cat':cat, 'cterm':cterm[filts == filt], \
@@ -127,10 +156,11 @@ def calibrate(mag, emag, zp, maglimit, cterm=None, color=None):
         cal = mag + cterm*color + zp
     else:
         cal = mag + zp
+
     # set maglimit
-    mag[mag >= maglimit] = maglimit
-    emag[mag >= maglimit] = 0.0
-    return mag,emag
+    cal[cal >= maglimit] = maglimit
+    emag[cal >= maglimit] = 0.0
+    return cal,emag
 
 
 def make_cat(info, WISPfilters, threshold, wispfield):
@@ -142,11 +172,12 @@ def make_cat(info, WISPfilters, threshold, wispfield):
         4) Set all photometry fainter than 1sigma to 1sigma
     '''
     Palcats = [info[f]['cat'] for f in ['g','i'] if info.has_key(f)]
-    Palcat.sort()
+    Palcats.sort()
     filts = info.keys()
+    filts = [x for x in filts if x != 'WISPim']
 
     # region file of Palomar objects
-    reg = open('Palomar-final.reg', 'w')
+    reg = open(os.path.join(wispfield,'Palomar-final.reg'), 'w')
     reg.write('global color=green dashlist=8 3 width=1 font="helvetica 10 '
             'normal roman" select=1 highlite=1 dash=0 fixed=0 edit=1 '
             'move=1 delete=1 include=1 source=1 \n')
@@ -156,6 +187,8 @@ def make_cat(info, WISPfilters, threshold, wispfield):
     pal1 = read_cat(Palcats[0])
     pal1RA = pal1['X_WORLD']
     pal1Dec = pal1['Y_WORLD']
+    pal1x = pal1['X_IMAGE']
+    pal1y = pal1['Y_IMAGE']
     ID = pal1['NUMBER']
     if len(Palcats) == 2:
         # 2 filters used
@@ -194,28 +227,31 @@ def make_cat(info, WISPfilters, threshold, wispfield):
                 info['i']['maglim'])
 
     # add all sources to region file
-    make_reg(pal1RA, pal1Dec, reg, 2, 'blue')
+    make_reg(pal1RA, pal1Dec, reg, 2, 'blue', nsource=pal1['NUMBER'])
     reg.close()
 
     # construct Palomar catalog
-    cat = Table([ID, pal1RA, pal1Dec, mag_g, emag_g, mag_i, emag_i],
-                names=('PalID', 'PalRA', 'PalDec', 'g', 'err_g', 'i', 'err_i'))
+    cat = Table([ID, pal1RA, pal1Dec, pal1x, pal1y, mag_g,emag_g,mag_i,emag_i],
+                names=('PalID', 'PalRA', 'PalDec', 'Palxx', 'Palyy', 
+                       'g', 'err_g', 'i', 'err_i'))
     cat['PalRA'].format = '{:.6f}'
     cat['PalDec'].format = '{:.6f}'
-    cat['g'].format = '{:.6f}'
-    cat['err_g'].format = '{:.6f}'
-    cat['i'].format = '{:.6f}'
-    cat['err_i'].format = '{:.6f}'
+    cat['Palxx'].format = '{:.3f}'
+    cat['Palyy'].format = '{:.3f}'
+    cat['g'].format = '{:.3f}'
+    cat['err_g'].format = '{:.3f}'
+    cat['i'].format = '{:.3f}'
+    cat['err_i'].format = '{:.3f}'
     cat.sort('PalID')
-    ascii.write(cat, output='Palomar.cat', format='fixed_width_two_line',
-                position_char='=')
+    ascii.write(cat, output=os.path.join(wispfield,'Palomar.cat'), 
+                format='fixed_width_two_line', position_char='=')
 
 
     # if WISP filters are present:
     #   1) match Palomar and WISP catalogs
     #   2) create a combined catalog
     #   3) trim palomar images?
-    If WISPFilters:
+    if WISPfilters:
         # read in first WISP catalog for RA and Dec
         t1 = read_cat(WISPfilters[0])
         wispRA = t1['X_WORLD']
@@ -223,37 +259,37 @@ def make_cat(info, WISPfilters, threshold, wispfield):
         ID = t1['NUMBER']
         # get photometry
         if os.path.join(wispfield,'fin_F110.cat') in WISPfilters:
-            t110 = read_cat('fin_F110.cat')
+            t110 = read_cat(os.path.join(wispfield,'fin_F110.cat'))
             mag_110 = t110['MAG_F1153W']
             emag_110 = t110['MAGERR_AUTO']
         else:
             mag_110 = np.array([99.99]*wispRA.shape[0])
-            emag_110 = np.array[(-9.99]*wispRA.shape[0])
+            emag_110 = np.array([-9.99]*wispRA.shape[0])
         if os.path.join('fin_F140.cat') in WISPfilters:
-            t140 = read_cat('fin_F140.cat')
+            t140 = read_cat(os.path.join(wispfield,'fin_F140.cat'))
             mag_140 = t140['MAG_F1153W']
             emag_140 = t140['MAGERR_AUTO']
         else:
             mag_140 = np.array([99.99]*wispRA.shape[0])
-            emag_140 = np.array[(-9.99]*wispRA.shape[0])
+            emag_140 = np.array([-9.99]*wispRA.shape[0])
         if os.path.join('fin_F160.cat') in WISPfilters:
-            t160 = read_cat('fin_F160.cat')
+            t160 = read_cat(os.path.join('fin_F160.cat'))
             mag_160 = t160['MAG_F1153W']
             emag_160 = t160['MAGERR_AUTO']
         else:
             mag_160 = np.array([99.99]*wispRA.shape[0])
-            emag_160 = np.array[(-9.99]*wispRA.shape[0])
+            emag_160 = np.array([-9.99]*wispRA.shape[0])
 
         # match Palomar to WISP
         idx,separc = match_cats(wispRA, wispDec, pal1RA, pal1Dec)
         match = (separc.value*3600. <= threshold)
         nomatch = (separc.value*3600. > threshold)
-        print '%i WISP objs matched to Palomar sources' % idx[match].shape[0]
-        print '%i WISP objs NOT matched to Palomar sources' % \
+        print '\n%i WISP objs matched to Palomar sources' % idx[match].shape[0]
+        print '%i WISP objs NOT matched to Palomar sources\n' % \
             idx[nomatch].shape[0]
 
         # add successfully matched sources to region file with width=4
-        reg = open('Palomar-final.reg', 'a')
+        reg = open(os.path.join(wispfield,'Palomar-final.reg'), 'a')
         make_reg(wispRA[match], wispDec[match], reg, 1.5, 'green')
 
         # create arrays for info from Palomar catalog
@@ -274,7 +310,7 @@ def make_cat(info, WISPfilters, threshold, wispfield):
                          mag_160, emag_160],
                         names=('ID','RA_WISP', 'Dec_WISP', 'RA_Pal', 'Dec_Pal',
                                'g', 'eg', 'i', 'ei', 'F110W', 'eF110W',
-                               'F140W', 'eF140W', 'F160W', 'eF160W')])
+                               'F140W', 'eF140W', 'F160W', 'eF160W'))
         wispCat['RA_Pal'].format = '{:.6f}'
         wispCat['Dec_Pal'].format = '{:.6f}'
         wispCat['g'].format = '{:.3f}'
@@ -282,7 +318,7 @@ def make_cat(info, WISPfilters, threshold, wispfield):
         wispCat['i'].format = '{:.3f}'
         wispCat['ei'].format = '{:.3f}'
         wispCat.sort('ID')
-        ascii.write(wispCat, output='Palomar_WISPS.cat', 
+        ascii.write(wispCat,output=os.path.join(wispfield,'Palomar_WISPS.cat'),
                     format='fixed_width_two_line', position_char='=')
 
         # trim images
@@ -291,10 +327,10 @@ def make_cat(info, WISPfilters, threshold, wispfield):
         cRA = WISPhdr['CRVAL1'] 
         cDec = WISPhdr['CRVAL2'] 
         xsize,ysize = 3.,3.
-        for filt in filts
-            Palim = os.path.join(wispfield, '%s_s.fits'%(wispfield,filt))
+        for filt in filts:
+            Palim = os.path.join(wispfield, '%s_%s.fits'%(wispfield,filt))
             outname = os.path.splitext(Palim)[0] + '_WISP.fits'
-            trim_image(Palim, cRA, cDec, xsize, ysize, outname=)
+            trim_image(Palim, cRA, cDec, xsize, ysize, outname)
 
 
 def main():

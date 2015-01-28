@@ -114,6 +114,6 @@ def run_SE(images, section, mode='single', updates={}):
     if mode == 'dual':
         images.sort()
         # g band is 1st image, i band is 2nd
-        single_SE(images[1], outstr, params)
+        single_SE([images[1]], outstr, params)
         dual_SE(images[0], images[1], outstr, params)
 
