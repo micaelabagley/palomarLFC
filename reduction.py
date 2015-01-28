@@ -42,10 +42,10 @@ from astropy.table import Table
 from glob import glob
 import time
 import os
-import biasproc
-import darkproc
-import flatproc
-import create_log
+from reduction import biasproc
+from reduction import darkproc
+from reduction import flatproc
+from reduction import create_log
 
 
 def get_filter(image):
