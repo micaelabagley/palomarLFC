@@ -144,7 +144,7 @@ def calibrate(Palcat, filt, threshold, wispfield, cutoff=0.2):
     sdss = read_cat(os.path.join(wispfield,'result.fits'))
     # take only the SDSS sources with a S/N >= 10 in both bands
     wSN = np.where((1.0875/(sdss['Err_g']) >= 10.) & 
-                   (1.0875/(sdss['Err_i']) >= 10.))
+                   (1.0875/(sdss['Err_i']) >= 10.) & (sdss['g'] >= 14))
     sdssRA = sdss['ra'][wSN]
     sdssDec = sdss['dec'][wSN]
     sdss_g = sdss['g'][wSN]
@@ -197,8 +197,10 @@ def calibrate(Palcat, filt, threshold, wispfield, cutoff=0.2):
     dist = upsig - lowsig
     w = np.where(np.abs(diff-zp) <= dist) 
     # resize arrays to drop large outliers
-    for arr in [palMag, sdss_g, sdss_i, diff]:
-        arr = arr[w]
+    palMag = palMag[w]
+    sdss_g = sdss_g[w]
+    sdss_i = sdss_i[w]
+    diff = diff[w]
 
     # plot zero points as a function of SDSS colors
     # to check for any obvious color terms we are missing
@@ -207,8 +209,9 @@ def calibrate(Palcat, filt, threshold, wispfield, cutoff=0.2):
 
     # resize arrays once more to remove outliers based on their
     # y-distances from the best fit line
-    for arr in [palMag, sdss_g, sdss_i]:
-        arr = arr[good]
+    palMag = palMag[good]
+    sdss_g = sdss_g[good]
+    sdss_i = sdss_i[good]
     sdss_color = sdss_color[good]
 
     # calibrate 
@@ -234,6 +237,7 @@ def calibrate(Palcat, filt, threshold, wispfield, cutoff=0.2):
     ax1.set_ylabel(r'$%s_{SDSS}-%s_{Pal}$'%(filt,filt), fontsize=15)
     ax1.set_xticks([-1,0,1,2,3,4])
     ax1.set_xlim(np.min(sdss_color)-0.5, np.max(sdss_color)+0.5)
+#    ax1.set_ylim(np.min(diff[good])-0.5, np.max(diff[good])+0.5)
 
     ax2.set_xlabel('$%s_{SDSS}$'%filt, fontsize=15)
     ax2.set_ylabel('$%s_{Pal,cal}$'%filt, fontsize=15)
@@ -308,12 +312,12 @@ def main():
     filt = pyfits.getheader(images[0])['FILTER'].rstrip("'")
 
     # Run SE on Palomar image
-    run_SE(images[0], 'Calibration', mode='single')
+    run_SE([images[0]], 'Calibration', mode='single')
     
     Palcat = glob(os.path.join(wispfield, '%s_*_calib_cat.fits' % wispfield))
 
     # calibrate photometry
-    threshold = 0.5  # arcsec for matching
+    threshold = 1  # arcsec for matching
     calibrate(Palcat[0], filt, threshold, wispfield)
 
 

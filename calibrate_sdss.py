@@ -170,6 +170,7 @@ def calibrate(Palcats, threshold, wispfield, cutoff=0.2):
     sdssDec = sdss['dec'][wSN]
     sdss_g = sdss['g'][wSN]
     sdss_i = sdss['i'][wSN]
+    
     # make plot of SDSS photometry and show the S/N >= 10 sources
     # output is called sdss_hist.pdf
     sdss_histograms.plot_limit(wispfield)
@@ -182,7 +183,8 @@ def calibrate(Palcats, threshold, wispfield, cutoff=0.2):
     print '\n%i Palomar objs matched to SDSS objs\n'%idx[match].shape[0]
     # add successfully matched sources to region file with width=4
     make_reg(sdssRA[idx[match]], sdssDec[idx[match]], reg, 1, 'red', width=4)
-    
+    reg.close()
+
     # resize photometry arrays
     # we only need sources that are matched to SDSS
     AUTO_g = AUTO_g[match]
@@ -237,14 +239,20 @@ def calibrate(Palcats, threshold, wispfield, cutoff=0.2):
     dist_g = g_upsig - g_lowsig
     dist_i = i_upsig - i_lowsig
     w = np.where( (np.abs(diff_g-zp_g) <= dist_g) & 
-                  (np.abs(diff_i-zp_i) <= dist_i))
+                  (np.abs(diff_i-zp_i) <= dist_i) &
+                  (AUTO_i != 99.0))
     # resize arrays to drop large outliers
-    for arr in [AUTO_g, sdss_g, AUTO_i, sdss_i, diff_g, diff_i]:
-        arr = arr[w]
+    AUTO_g = AUTO_g[w]
+    sdss_g = sdss_g[w]
+    AUTO_i = AUTO_i[w]
+    sdss_i = sdss_i[w]
+    diff_g = diff_g[w]
+    diff_i = diff_i[w]
 
     # get color terms
     # first get color terms from instrumental Palomar colors
     instr_color = AUTO_g - AUTO_i
+    
     alpha_g,alpha_i,good = colorterms(diff_g, diff_i, instr_color, 
                                       ax1, ax2, cutoff)
     # now get color terms from SDSS colors (for checking)
@@ -265,8 +273,10 @@ def calibrate(Palcats, threshold, wispfield, cutoff=0.2):
 
     # resize arrays once more to remove outliers based on their
     # y-distances from the best fit line
-    for arr in [AUTO_g, AUTO_i, sdss_g, sdss_i]:
-        arr = arr[good]
+    AUTO_g = AUTO_g[good]
+    AUTO_i = AUTO_i[good]
+    sdss_g = sdss_g[good]
+    sdss_i = sdss_i[good]
     instr_color = AUTO_g - AUTO_i
     sdss_color = sdss_g - sdss_i
 
@@ -346,9 +356,9 @@ def calibrate(Palcats, threshold, wispfield, cutoff=0.2):
     
     # calculate limiting magnitude for each image
     segmap = os.path.join(wispfield,'%s_i_calib_seg.fits'%wispfield)
-    maglim_g,sig_g = find_maglim(os.path.join(wispfield,'%s_g.fits'%wispfield, 
+    maglim_g,sig_g = find_maglim(os.path.join(wispfield,'%s_g.fits'%wispfield), 
                                  segmap, alpha_g[1], wispfield)
-    maglim_i,sig_i = find_maglim(os.path.join(wispfield,'%s_i.fits'%wispfield,
+    maglim_i,sig_i = find_maglim(os.path.join(wispfield,'%s_i.fits'%wispfield),
                                  segmap, alpha_i[1], wispfield)
 
     # print out info for calibration
@@ -414,7 +424,7 @@ def main():
     Palcats.sort()
 
     # calibrate photometry
-    threshold = 0.5  # arcsec for matching
+    threshold = 1 # arcsec for matching
     calibrate(Palcats, threshold, wispfield)
 
 
