@@ -27,7 +27,7 @@
     {\small \@date}%
   \end{center}%
   \par
-  \vskip 1.5em}
+  \vskip 1em}
 \makeatother
 %%% reduce spacing between items in lists %%%
 \newlength{\wideitemsep}
@@ -42,253 +42,93 @@
 %%%
 \newcommand{\An}{\textit{Astrometry.net}}
 
-\title{Palomar 200" LFC Reduction Cookbook}
-\author{Micaela Bagley}
-\date{December 2014}
+\title{Palomar 200" LFC Reduction README}
+%\author{Micaela Bagley}
+\author{February 2015}
+\date{}
 
 \begin{document}
 \maketitle
 
 \section{Reduction}
-\subsection{Organize the data}
-The first step is to sort the data from a night of observations. 
-The \texttt{extract\_header} module in \texttt{sort\_images.py} will
-produce a file listing all images in a directory as well as their
-image type, object name, exposure time, filter, airmass, and binning 
-($1\times1$ or $2\times2$).\\
+Reduction is performed in the usual way. Very few observation runs 
+included darks, and most flats taken were dome flats. For consistency, 
+we do not perform dark subtraction. Additionally, all flat fielding is done 
+with dome flats, even if twilight flats were taken on a given night.
 
-\texttt{usage: sort\_images.py [-h] [--extract\_header] directory} \\
+%\vspace{3 mm}
+\section{Astrometry, Alignment \% Stacking}
+The astrometric solution for each field is found through two steps:
+(1) The \textit{Astrometry.net} software returns a rough 
+(though very good) WCS solution, and (2) IRAF's CCMAP task calculates
+a second order solution that hopefuly takes care of the small distortions
+and rotations at the chip's edges. We use SDSS astrometry as a reference.
+Astrometry was by far the most challenging
+step, and it is not perfect in all fields.\\
 
-\texttt{directory} $-$ \hangindent=2.7cm the directory for which to extract
-information from all image headers.\\
+\noindent \textbf{NOTE!} The astrometry is best on the chip's top half. 
+The astrometric solution is very poor near the bottom of the chip
+and can have problems very close to the chip edges. In some fields, 
+the Palomar astrometry is significantly different from that in the 
+WISP catalogs.
+\textbf{Be careful when matching Palomar and WISP catalogs. You may
+be missing many valid matches with a small matching radius.} 
+Compare WISP.reg and Palomar.reg to check. \\
 
-\noindent You should have a directory for each night of science data (e.g.
-\texttt{23mar12/}) and a directory for each of the types of calibration 
-images to be used in reducing the science data (a directory each for 
-biases, flats, and if necessary, darks). The directories for calibration 
-images may be wherever you like (inside the
-directory of science images, some random place on your computer, etc.)
-as long as the calibration files have their own directories. \\
+\noindent Images are stacked using IRAF's IMCOMBINE task and the 
+crreject rejection algorithm. 
+We only include images 
+with perfectly consistent astrometry, at least on the upper half of the chip.
+We throw out images with (1) very poor seeing, (2) abnormally elongated 
+sources, or (3) very few sources / 
+an unusually high sky background due to clouds. \\
 
-\noindent Inspect all calibration images and put any biases you don't 
-want to use inside a directory called \texttt{unused/} within the biases 
-directory. The same goes for the flats (and darks). The naming convention
-for directories is necessary if you wish the reduction pipeline to 
-automatically produce a log file. 
-
-\vspace{3 mm}
-\section{Astrometry \& Alignment}
-WCS 
-
-After reducing the data, sort all images by WISP parallel field with
-one field per directory. Output files will be named after the directory.
-For example, images in \texttt{Par300/} will be aligned and combined
-to form \texttt{Par300\_[filter].fits}.
-There are several fields that were observed on multiple nights. To avoid 
-overwriting files, give each FITS file a unique name 
-(include the date observed, for example). \\
-
-\noindent Astrometry and image alignment is performed in $4$ steps:
-\begin{enumerate}
-\item \texttt{astrometry.py}
-\item \texttt{fix\_astrometry.py}
-\item \texttt{combine.py}
-\item \texttt{align\_images.py} ~~(\texttt{imalign.pro})
-\end{enumerate}
-\subsection{\texttt{astrometry.py}}
-The first step is to get a rough (though very good) approximate WCS 
-solution for each image in a WISP parallel field using the \An~software 
-package. \texttt{astrometry.py} builds the command that will
-run the \An~software on each image in a directory. \\
-
-\texttt{usage: astrometry.py [-h] [--useSE] wispfield} \\
-
-\texttt{wispfield} $-$ \hangindent=2.7cm the WISP parallel field whose images
-are to be fit with WCS solutions. This must match the name of the directory that
-contains all relevant FITS files.\\
-
-\texttt{--useSE} ~~$-$ \hangindent=2.7cm option to use \textit{SExtractor} 
-to detect sources in each image rather than \An's bundled ``images2xy'' 
-program. \\
-
-\noindent Solved files are renamed \texttt{<base>\_solved.fits}. These 
-are the original FITS images with headers updated to contain the WCS
-solutions. 
-The original FITS image as well as all of \An's auxiliary
-output files are moved to a directory called \texttt{astrometric\_solns}.
-See Appendix \ref{Anoutputs} for a list of the output files. \\
-
-\noindent \An~software can take a long time if it must run 
-through every available index file in order to find one that covers the
-image. In order to expedite the process, \texttt{astrometry.py} tells \An~to:
-\begin{itemize}
-    \item skip running the FITS files through a ``sanitizer'', which cleans up
-    non-standards-compliant images
-    \item query only index files within 1$^{\circ}$ of the RA and Dec in the 
-    image headers
-    \item expect image pixel scales in the range $0.1 - 0.45$''/pix 
-\end{itemize}
-The range in the last step is enough to cover both binned and unbinned images
-and ensures that only index files of the proper scale are used in 
-determining the fit. (This step probably does not affect much as
-that's a rather large range.) \\
-
-\subsection{\texttt{fix\_astrometry.py}}
-The \An~software does a great job with the astrometry near the 
-center of the chip. Most WISP fields
-were observed on the top $1/3$ of the chip. At the bottom and edges of 
-the images, the WCS gets further off. 
-\texttt{fix\_astrometry.py} uses IRAF's CCMAP task to calculate
-a second order solution that takes care of the small 
-distortions and rotations at the
-edges. \\
-
-\texttt{usage: fix\_astrometry.py [-h] wispfield} \\
-
-\texttt{wispfield} $-$ \hangindent=2.7cm the WISP parallel field whose images
-are to be fit with improved WCS solutions. This must match the name of 
-the directory that contains all relevant FITS files.\\
-
-\texttt{Required files}: \\
-\indent \indent \texttt{result.fits} $-$ the SDSS
-catalog\footnote{Download the catalog from 
-\url{http://skyserver.sdss3.org/dr10/en/tools/search/radial.aspx} in fits
-format} for the WISP field. \\
-
-\noindent \texttt{fix\_astrometry.py} first runs \textit{SExtractor}
-on all images and outputs a catalog and segmentation map named
-\texttt{<base>\_astr\_cat.fits} and \texttt{<base>\_astr\_seg.fits},
-respectively. For each image, it then matches the sources detected in the
-Palomar image with the SDSS catalog. A file to be used with CCMAP, 
-\texttt{SDSS.match}, is created
-listing the Palomar $x,y$ coordinates with the SDSS RA and Dec for each 
-source. Finally, it launches CCMAP, which allows the user to interactively
-delete obvious residuals in the astrometric solution. The 
-\texttt{<base>\_solved.fits} headers are updated with the new and 
-improved WCS. 
-
-\subsection{\texttt{combine.py}}
-Once all images have corrected WCS solutions, images from like filters
-are stacked using IRAF's IMCOMBINE task. Before combining, the user should
-inspect all images and remove any for which the seeing is significantly worse.
-Use IRAF's IMEXAM to check the FWHM of a few point sources across each image.
-Make sure to check the observing logs as well for any mention of clouds or 
-other problems. \texttt{combine.py} will prompt the user to stop and 
-perform this inspection if they haven't already. \\
-
-\texttt{usage: combine.py [-h] [--rejection {none,minmax,ccdclip,crreject,sigclip,avsigclip,pclip}] \\
-\indent \indent \indent \indent \indent \texttt{[--combine {average,median,sum}] wispfield}} \\
-
-\texttt{wispfield} $-$ \hangindent=2.7cm the WISP parallel field for which 
-to stack image. This must match the name of the directory that contains all
-relevant FITS files.\\
-
-\texttt{--rejection} $-$ \hangindent=2.7cm the rejection algorithm to use. 
-Default is \texttt{crreject}, which rejects only positive pixels and is 
-appropriate for cosmic ray rejection. \\
-
-\texttt{--combine} ~~$-$ \hangindent=2.7cm the type of combining operation 
-to perform. Default is \texttt{median}. \\
-
-\noindent See the IMCOMBINE help page for more information about parameter 
-options.
-
-\noindent For each filter, \texttt{combine.py} determines which images
-need to be combined and prepares all parameters and files for use with 
-IMCOMBINE. Multiplicative scale factors are calculated for each image
-from the airmass (\texttt{[wispfield]\_[filter].scale}). 
+\noindent Multiplicative scale factors are calculated for each image
+from the airmass. 
 The scale factor $=10^{0.4 ~ \kappa_F~ X}$, where $\kappa_F$ is the airmass 
 coefficient calculated for the Palomar site\footnote{Taken from 
-\url{http://www.ifa.hawaii.edu/~rgal/science/dposs/ccdproc/ccdproc_node3.html}, 
+\url{http://www.ifa.hawaii.edu/~rgal/science/dposs/ccdproc/ccdproc\_node3.html},
 where $\kappa_g = -0.152$, $\kappa_r=-0.094$, and $\kappa_i=-0.07$.} 
 and filter $F$.
 Additive zero level shifts are calculated from the median value for 
-each image. All zero corrections are done with respect to the first image,
-so the images are sorted such that the lowest sky is listed first.  \\
-
-\noindent The readnoise is necessary for IMCOMBINE's sigma clipping routines,
-and can be estimated by binning the counts from an averaged bias frame. The
+each image. 
+The readnoise, necessary for crreject,
+is estimated by binning the counts from an averaged bias frame. The
 mean of the resulting histogram is the bias offset and 
-the width of the distribution is $\sigma_{ADU} =~$readnoise/gain$~=~$FWHM.
-The user should include in each WISP field directory the master bias from
-each night the field was observed, and \texttt{combine.py} will estimate
-an average readnoise to use for all images.\\
+the width of the distribution is $\sigma_{ADU} =~$readnoise/gain$~=~$FWHM.\\
 
-\noindent Finally \texttt{combine.py} reports the number of images available
-in each filter and asks the user to choose the number of low/high pixels
-to reject or the number of pixels to keep 
-(depending on the rejection algorithm used). \\
+\noindent If there are 2 filters observed that night, the images are 
+aligned using the WCS in the headers and IRAF's task WREGISTER.
 
-\noindent IMCOMBINE uses the WCS in the headers to calculate and apply 
-offsets to each image so they are properly aligned before stacking. 
-Combined images are called \texttt{[wispfield]\_[filter].fits}. 
-Sigma images are also created (\texttt{[wispfield]\_[filter]\_sig.fits}),
-and the log file for the combination is called
-\texttt{[wispfield]\_imcombine.log}. \\
-
-\subsection{\texttt{align\_images.py}}
-If there are 2 filters observed that night, \texttt{combine.py} will 
-import \texttt{align\_images.py} to align those images using 
-the WCS in the headers and IRAF's 
-task WREGISTER.
-
-\vspace{4 mm}
-\section{Calibration}
-For each field, the Palomar photometry is calibrated against the SDSS catalog 
-(\texttt{result.fits}). \texttt{calibrate\_sdss.py} calculates both a zero 
-point shift and a color term and saves them for use in calibrating the final 
-catalog. \\
-
-\texttt{usage: calibrate\_sdss.py [-h] wispfield} \\
-
-\texttt{wispfield} $-$ \hangindent=2.7cm the WISP parallel field for which
-to calibrate photometry. This must match the name of the directory that
-contains all relevant FITS files.\\
-
-
-\noindent \textit{SExtractor} is run in dual image mode
+%\vspace{2 mm}
+\section{Calibration}\label{sec:cal}
+For each field, the Palomar photometry is calibrated against the SDSS catalog. 
+\textit{SExtractor} is run in dual image mode
 on the combined Palomar images with 
-$1\sigma$ detection and analysis thresholds and a minimum area for 
-detection of 5 pixels. Such low thresholds are used to ensure that as much
+$1\sigma$ detection and analysis thresholds. 
+Such low thresholds are used to ensure that as much
 light as possible is included in each source's automatic magnitude. The 
-Palomar catalogs are then match with the SDSS catalog using a $0.5''$
-matching threshold. \\
+Palomar catalogs are then matched with the SDSS catalog using a $1''$
+matching threshold. We consider only SDSS sources with S/N$\geq10$ in 
+both $g$ and $i$. \\
 
-\noindent The zero point shift, $zp = m_{SDSS} - m_{Palomar}$ 
-is calculated for all sources, and those outside of $68\%$ of the
-mean $zp$ are excluded. There is a residual slope visible in a plot of 
-$zp$ that depends on color (top two rows of Fig.~\ref{fig:cals}).
-This dependence is especially prevalent in the $g$ band.
-Color terms to correct for this dependence 
-are determined by fitting a line to the array of 
-zero point shifts. Outliers (plotted in red) that are too far from the 
-line in the 
-$y$-direction are removed, and a new line (plotted in black) 
-is fit to the remaining points. \\
-
-
-\noindent where $\alpha_0$ is the slope of the best-fit line (the color term)
-and $\alpha_1$ is the offset (the zero point shift). Several plots
-are then created to check the quality of the calibration (rows $3-4$ in 
-Fig.~\ref{fig:cals}). The last row shows the residuals of the calibrated 
-data. For perfectly calibrated photometry, there would be no remaining
-color dependence and the solid line would have a slope of zero. 
+\noindent Ater removing outliers, we calculate a zero point shift and -- 
+for fields
+observed with both $g$ and $i$ -- a color term
+using the instrumental Palomar colors. 
 The Palomar photometry is then calibrated by:
 \begin{equation}
-m_{calibrated} = m_{Palomar} + \alpha_0~(g-i)_{Palomar} + \alpha_1,
+m_{calibrated} = m_{Palomar} + \alpha~(g-i)_{Palomar} + zp,
 \label{eqn:cal}
 \end{equation}
+where $\alpha$ is the color term
+and $zp = m_{SDSS} - m_{Palomar}$ is the zero point shift. Several plots
+are created to check the quality of the calibration.
+The last row shows the residuals of the calibrated 
+data. For perfectly calibrated photometry, there would be no remaining
+color dependence and the solid line would have a slope of zero. \\
 
-\subsection{1 Palomar Filter, 1 WFC3 filter}
-Fields that were observed with only one SDSS filter require a second
-filter for determination of the color terms. For this we use the WFC3
-UVIS filters that are available for the field. Possible color combinations
-include ($g-$F814W), (F606W$-i$), ($g-$F600LP), and (F475X$-i$).
-Use \texttt{calibrate\_sdss\_hst.py} in place of 
-\texttt{calibrate\_sdss.py}.
-
-
-\vspace{4 mm}
+%\vspace{2 mm}
 \section{Final Catalog}
 If both filters are present, SE is run in dual image
 mode with the $i$ band used for detection.  SE parameters are listed
@@ -335,26 +175,70 @@ depends on the Sersic index. (See, for example,
 \htmladdnormallink{Graham \& Driver 
 (2005)}{http://adsabs.harvard.edu/abs/2005PASA...22..118G}.) \\
 
-The Palomar and WISP catalogs (fin\_F110.cat, fin\_F140.cat, fin\_F160.cat)
-are matched with a matching threshold of $0\farcs75$. For some fields, 
+\noindent The limiting magnitude is determined for each filter by binning the 
+flux calculated in 2.5" circular apertures placed randomly on the sky
+in the image. The distribution of fluxes is fit with a Gaussian and 
+the $\sigma$ is calculated. \textbf{All fluxes fainter than the
+$1\sigma$ limit are set to the $1\sigma$ magnitude,} and their uncertainties
+are set to $0.0$.  \\
+
+\noindent The Palomar and WISP catalogs 
+(fin\_F110.cat, fin\_F140.cat, fin\_F160.cat)
+are matched with a matching threshold of $0.75$". For some fields, 
 the astrometry between the WISP and Palomar catalogs is off by more then 
-$0\farcs75$ and 2.0" is used instead. In these cases, the field's 
-README mentions is. 
+$0.75$" and 2.0" is used instead. This is indicated by a note in the
+field's README. In all cases, the images were visually inspected 
+to confirm the quality of the matches. \\
 
+\noindent In both output catalogs, photometry for filters that do not exist 
+is set
+to $99.99$ with $-9.99$ uncertainties. This is also true for the Palomar
+RA and Dec of sources in the WISP catalog there were not matched to a 
+Palomar source.
 
-\texttt{make\_final\_catalog.py} runs \textit{SExtractor} a final time
-with detection and analysis thresholds of $2.2\sigma$ so that all sources
-are detected at $\geq5\sigma$. The zero point shift and color terms 
-calculated by \texttt{calibrate\_sdss.py} are applied to all Palomar
-photometry. Palomar sources are matched to the WISP catalog with a 0.5''
-matching radius. The final catalog includes both Palomar and WISP
-RA and Dec and photometry from all available filters.\\
+\section{Final Products}
 
-\texttt{usage: make\_final\_catalog.py [-h] wispfield} \\
-
-\texttt{wispfield} $-$ \hangindent=2.7cm the WISP parallel field for which
-to construct the final catalog. This must match the name of the directory that
-contains all relevant FITS files.\\
+\begin{description}
+%\parshape 2 0cm \linewidth \listindent \dimexpr\linewidth-\listindent\relax
+  \item[Palomar.cat] Catalog of calibrated photometry. Only sources from 
+                     the full overlap region of the combined image 
+                     are included. Sources near the edges, where fewer
+                     input images are contributing to the combined stack, 
+                     are excluded. \\
+  \item[Palomar.reg] Region file of sources in Palomar.cat \\
+  \item[Palomar\_WISPS.cat] WISP catalog with matched Palomar sources. All
+                     NIR photometry available from the HST reduction is 
+                     included.\\
+  \item[README.txt] Info on observations, reductions, stacking, and calibration
+                     for the given field. \\
+  \item[result.fits] SDSS catalog \\
+  \item[sdss\_calibration.dat] Calibration information: color terms, zero 
+                               points, and limiting magnitudes for each 
+                               filter. \\
+  \item[sdss\_calibration.pdf] Calibration plots showing the determination of 
+                     the color terms, a comparison of the calibrated 
+                     photometry with SDSS, and the residual slopes 
+                     post-calibration. \\
+  \item[(wispfield)\_g\_final\_cat.fits] Full, uncalibrated $g$ band SE
+                                         catalog \\
+  \item[(wispfield)\_g\_final\_seg.fits] SE segmentation map, present only 
+                                    if $g$ is the only filter present.
+                                    If the field was observed with $i$ as well,
+                                    the images were run in dual image mode
+                                    and the $i$ band segmentation map is
+                                    the only one produced. \\
+  \item[(wispfield)\_g.fits] Combined $g$ image, full chip \\
+  \item[(wispfield)\_g\_WISPFOV.fits] Combined $g$ image, centered at 
+                                      WISP RA,Dec and trimmed to $3'\times3'$\\
+  \item[(wispfield)\_i\_final\_cat.fits] Full, uncalibrated $i$ band SE
+                                         catalog \\
+  \item[(wispfield)\_i\_final\_seg.fits] SE segmentation map \\
+  \item[(wispfield)\_i.fits] Combined $i$ image, full chip \\
+  \item[(wispfield)\_i\_WISPFOV.fits] Combined $i$ image, centered at 
+                                      WISP RA,Dec and trimmed to $3'\times3'$\\
+  \item[WISP.reg] Region file of WISP catalog. Sources matched to Palomar
+                  are indicated by thick circles
+\end{description}
 
 
 \end{document}
