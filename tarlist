@@ -1,0 +1,17 @@
+[tarfile]
+file1 = Palomar.cat
+file2 = Palomar.reg
+file3 = Palomar_WISPS.cat
+file4 = WISP.reg
+file5 = README.txt
+file6 = result.fits
+file7 = sdss_calibration.dat
+file8 = sdss_calibration.pdf
+file9 = _g_final_cat.fits
+file10 = _g_final_seg.fits
+file11 = _g.fits
+file12 = _g_WISPFOV.fits
+file13 = _i_final_cat.fits
+file14 = _i_final_seg.fits
+file15 = _i.fits
+file16 = _i_WISPFOV.fits
