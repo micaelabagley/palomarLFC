@@ -19,6 +19,8 @@ def estimate_effective_gain(image):
     exptime = 0.
     Nim = len(ims)
     for i in range(Nim):
+        if os.path.splitext(ims[i])[1] != '.fits':
+            ims[i] = ims[i] + '.fits'
         exptime += pyfits.getheader(os.path.join(wispfield,ims[i]))['exptime']
     gain = Palomar_gain * Nim
     return gain
@@ -41,7 +43,6 @@ def single_SE(images, outstr, params):
         for key,value in params.iteritems():
             args.append(key)
             args.append(value)
-        print args
         # run SE
         subprocess.check_call(args)
 

@@ -35,11 +35,25 @@ from astropy.table import Table
 from scipy.optimize import curve_fit
 from scipy.stats import norm
 from pyraf import iraf
-from iraf import imcombine,imalign
+from iraf import imcombine
+from align_images import run_wregister
+
 
 def get_filter(image):
     hdr = pyfits.getheader(image)
     return hdr['FILTER'].rstrip("'")
+
+
+def read_cat(catfile):
+    '''Read in fits tables or ascii text files'''
+    extension = os.path.splitext(catfile)[1]
+    if extension == '.fits':
+        f = pyfits.open(catfile)
+        cat = f[1].data
+        f.close()
+    if extension == '.cat':
+        cat = Table.read(catfile, format='ascii')
+    return cat
 
 
 def write_file(value_list, filename):
@@ -48,26 +62,6 @@ def write_file(value_list, filename):
     for x in value_list:
         f.write('%s\n' % x) 
     f.close()
-
-
-def run_SE(image, wispfield):
-    '''Run SExtractor on the images'''
-    # names of output files
-    base = os.path.splitext(image)[0]
-    cat = base + '_cat.fits'
-    seg = base + '_seg.fits'
-
-    # pixscale
-    pixscale = pyfits.getheader(image)['SECPIX1']
-
-    # run SE
-    cmd = ('sex ' +image+ ' -c config.sex -CATALOG_NAME ' +cat+\
-           ' -THRESH_TYPE RELATIVE -DETECT_MINAREA 5 -DETECT_THRESH ' +\
-           '2.2 -ANALYSIS_THRESH 2.2 -WEIGHT_TYPE NONE ' +\
-           '-BACK_SIZE 64 -PIXEL_SCALE ' +str(pixscale) +\
-           ' -CHECKIMAGE_TYPE SEGMENTATION ' +\
-           '-CHECKIMAGE_NAME ' +seg)
-    subprocess.call(cmd, shell=True)
 
 
 def get_rdnoise(wispfield):
@@ -205,8 +199,8 @@ def run_imcombine(wispfield, rejection, combine):
         write_file(scale_factor, scale_list)
 
         # parameters for IMCOMBINE
-        params = {'input':'@%s'%image_list, 'output':'@%s'%output,
-                  'sigmas':'@%s'%sigmas, 'combine':combine,
+        params = {'input':'@%s'%image_list, 'output':output,
+                  'sigmas':sigmas, 'combine':combine,
                   'reject':rejection, 'scale':'@%s'%scale_list, 
                   'zero':'median', 'mclip':'yes', 'rdnoise':rdnoise,
                   'gain':gain, 'logfile':logfile, 'offsets':'wcs'}
@@ -230,62 +224,9 @@ def run_imcombine(wispfield, rejection, combine):
             print 'There are %i images in the %s band' % (nim, f)
             nkeep = raw_input('What is the minimum number of pixels to keep? ')
             params['nkeep'] = int(nkeep)
-
+ 
         # run imcombine
         imcombine(**params)        
-
-
-def run_imalign(images):
-    '''Set up parameters for IRAF's task IMALIGN and run via PYRAF'''
-    # run SE on images to get x coordinates
-    for image in images:
-        run_SE(image)
-
-    # read in Palomar catalogs
-    if len(Palcats) == 2:
-        # 2 filters used
-        # g in dual image mode
-        pal1 = read_cat(Palcats[0])
-        pal1RA = pal1.field('X_WORLD')
-        pal1Dec = pal1.field('Y_WORLD')
-        pal1x = pal1.field('X_IMGE')
-        pal1y = pal1.field('Y_IMAGE')
-        # i in single image mode
-        pal2 = read_cat(Palcats[1])
-        pal2RA = pal2.field('X_WORLD')
-        pal2Dec = pal2.field('Y_WORLD')
-        pal2x = pal2.field('X_IMAGE')
-        pal2y = pal2.field('Y_IMAGE')
-    else:
-        print 'Not sure what to do with %i Palomar SE catalogs'%len(Palcats)
-        exit()
-
-    # match catalogs
-    idx,separc = match_cats(pal1RA, pal1Dec, pal2RA, pal2Dec)
-    match = (separc.value*3600. <= 0.5)
-    print '\n%i i band objs matched to g band objs\n'%idx[match].shape[0]
-
-    # calculate shifts
-    pal1x = pal1x[match]
-    pal1y = pal1x[match]
-    pal2x = pal2x[idx[match]]
-    pal2y = pal2y[idx[match]]
-    shiftx = pal1x - pal2x  
-    shifty = pal1y - pal2y
-    # write to file
-    shift = ['%.2f %.2f' % (shiftx, shifty)]
-    write_file(shift, 'imalign.shifts')
-    
-    # write x coords to file for reference image
-    coords = ['%.3f %.3f'%(xx,yy) for xx,yy in zip(pal1x, pal1y)]
-    write_file(coords, 'imalign.coords')
-
-    params = {'input':'%s,%s'%(images[0],images[1]), 'reference':images[0],
-              'coords':'imalign.coords', 'shifts':'imalign.shifts',
-              'output':'%s,%s'%(images[0],images[1]), 'negative':'no',
-              'shiftimages':'yes', 'interp_type':'spline3',
-              'boundary_type':'constant', 'constant':0, 'trimimages':'yes'}
-    imalign(**params)
 
 
 def main():
@@ -317,8 +258,11 @@ def main():
                if x in glob(os.path.join(wispfield,'%s_*.fits'%wispfield))]
     images.sort()
     if len(images) > 1:
-        # align images with IMALIGN
-        run_imalign(images)
+        # align images with WREGISTER
+        image = os.path.join(wispfield,'%s_g.fits'%wispfield)
+        reference = os.path.join(wispfield, '%s_i.fits'%wispfield)
+        run_wregister(image, reference)
+
 
 if __name__ == '__main__':
     main()

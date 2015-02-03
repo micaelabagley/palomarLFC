@@ -17,8 +17,6 @@ class CircularAperture():
         self.yc = yc
         self.radius = radius
         self.clean = self.circular_aperture()
-#        self.aperture = self.circular_aperture()
-#        self.clean = self.check_seg()
 
     def circular_aperture(self):
         '''Create a circular mask'''
@@ -65,6 +63,14 @@ def photometry(image, segmap, naper, rad, zp):
     xx = np.random.randint(hdr['NAXIS1']-20, size=naper) + 10
     yy = np.random.randint(hdr['NAXIS2']-20, size=naper) + 10
  
+    # don't consider apertures on left or lower sections of chip
+    #   lower section is usually contaminated by lots of light 
+    #   left side contains flux from only some of the images
+    w = np.where((xx >= 100) & (yy >= 300))
+    #w = np.where((yy >= 300))
+    xx = xx[w]
+    yy = yy[w]
+
     Aperture = CircularAperture(im, seg, xx, yy, rad)
     # perform photometry on uncontaminated aperture
     w = np.where(Aperture.clean)
@@ -73,7 +79,6 @@ def photometry(image, segmap, naper, rad, zp):
         exact=True, badpix=[0,0], setskyval=0.)
     mag,magerr,flux,fluxerr = phot[0],phot[1],phot[2],phot[3]
     make_reg(xx[w], yy[w], reg, rad)
-#    fluxes = flux[fluxes != 0.0]
     reg.close()
     return flux
 
@@ -92,7 +97,8 @@ def fit_gaussian(flux, ax, left=False):
     width = 1.01 * (bins[1] - bins[0])
     ax.bar(bincenters, hist, align='center', width=width, alpha=0.4,
            linewidth=0)
-
+    ticks = [np.min(bincenters), np.median(bincenters), np.max(bincenters)]
+    print hist.shape, bincenters.shape
     # mirror left side to avoid contamination from sources
     if left:
         # find the peak of the histogram
@@ -112,9 +118,11 @@ def fit_gaussian(flux, ax, left=False):
         if ntot > nbins:
             binsize = bins[1] - bins[0]
             bincenters = np.append(bincenters,np.arange(bincenters[-1]+binsize,
-                                   bincenters[-1]+binsize*(ntot-nbins),binsize))
+                                   bincenters[-1]+binsize*(ntot-nbins+1),
+                                   binsize))
         # plot the new bins 
         width = 1.01 * (bincenters[1] - bincenters[0])
+        print tot.shape, bincenters.shape
         ax.bar(bincenters, tot, align='center', width=width, alpha=0.5, 
                color='k', linewidth=0)
         hist = tot
@@ -128,7 +136,9 @@ def fit_gaussian(flux, ax, left=False):
     # add to plot
     ax.plot(bincenters, gaussfunc(bincenters, *popt), 'k', alpha=0.5,
             linewidth=2)
-    ax.set_xticks([np.min(bincenters),np.median(bincenters),np.max(bincenters)])
+    ax.set_xticks([np.min([ticks[0],np.min(bincenters)]), \
+                   np.max([ticks[1],np.median(bincenters)]), \
+                   np.max([ticks[2],np.max(bincenters)])])
     ax.xaxis.set_minor_locator(AutoMinorLocator(5))
     return popt
 
@@ -147,11 +157,6 @@ def find_maglim(image, segmap, zp, wispfield, rad=2.5, naper=5000):
     ax2 = fig.add_subplot(gs[0,1])
     ax3 = fig.add_subplot(gs[1,0])
     ax4 = fig.add_subplot(gs[1,1])
-#    ax5 = fig.add_subplot(gs[1,1])
-#    ax6 = fig.add_subplot(gs[1,2])
-#    ax7 = fig.add_subplot(gs[2,0])
-#    ax8 = fig.add_subplot(gs[2,1])
-#    ax9 = fig.add_subplot(gs[2,2])
     axs = [ax1, ax2, ax3, ax4]#, ax5, ax6, ax7, ax8, ax9]
 
     fig.suptitle(r'%s %s band,  Histogram of fluxes'%(wispfield,filt))
