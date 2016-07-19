@@ -37,7 +37,7 @@
 ########################################################################
 import argparse
 import numpy as np
-import pyfits
+from astropy.io import fits
 from astropy.table import Table
 from glob import glob
 import time
@@ -49,18 +49,26 @@ from reduction import create_log
 
 
 def get_filter(image):
-    hdr = pyfits.getheader(image)
+    hdr = fits.getheader(image)
     return hdr['FILTER'].rstrip("'")
+
+
+def check_header(image, keyword):
+    '''Check header for presence of keyword'''
+    if keyword in fits.getheader(image):
+        return True
+    else:
+        return False
 
 
 def expt_norm(image):
     '''Normalize an image by its exposure time'''
-    im,hdr = pyfits.getdata(image, header=True)
+    im,hdr = fits.getdata(image, header=True)
     exptime = hdr['EXPTIME']
     new = im / exptime
     # add a header keyword
     hdr['EXPTNORM'] = (exptime, 'Image normalized by EXPTIME')
-    pyfits.writeto(image, new, header=hdr, clobber=True)
+    fits.writeto(image, new, header=hdr, clobber=True)
 
 
 def main():
@@ -76,8 +84,9 @@ def main():
         help='Directory containing the darks. Default is darks/.')
     parser.add_argument('--flatdir', type=str, default='flats',
         help='Directory containing the flats. Default is flats/.')
-    parser.add_argument('--SaveSteps', action='store_true',
-        help="Save each reduction step as a new image, with strings " +\
+    parser.add_argument('--Overwrite', action='store_true',
+        help="Overwrite files after each reduction step. If not set, " +\
+             "images are saved as separate files, with strings " +\
              "('bs', 'ds', 'ff') appended to filenames to indicate " +\
              "reduction steps taken.")
     parser.add_argument('--LogSteps', type=str,
@@ -98,7 +107,8 @@ def main():
     biasdir = args.biasdir
     darkdir = args.darkdir
     flatdir = args.flatdir
-    SaveSteps = args.SaveSteps
+    Overwrite = args.Overwrite
+    SaveSteps = False if Overwrite else True
     LogSteps = args.LogSteps
     DarkSubtract = args.DarkSubtract
     UseBias = args.UseBias
@@ -117,49 +127,54 @@ def main():
     if binning == 'unbinned':
         bin1,bin2 = (1,1)
 
+    # filenames - extensions for SaveSteps option
+    bstr = 'bs'
+    dstr = 'ds'
+    fstr = 'ff'
+
     ############################
     '''GET LISTS OF ALL FILES'''
     ############################
-    if not UseBias:
-        # list of all biases in biasdir
-        biaslist_all = glob(os.path.join(biasdir,'*.fits'))
-        # find all the biases with the proper binning
-        biaslist = []
-        for bias in biaslist_all:
-            hdr = pyfits.getheader(bias)
+#    if not UseBias:
+    # list of all biases in biasdir
+    biaslist_all = glob(os.path.join(biasdir,'ccd*0.fits'))
+    # find all the biases with the proper binning
+    biaslist = []
+    for bias in biaslist_all:
+        hdr = fits.getheader(bias)
+        if (hdr['CCDBIN1'],hdr['CCDBIN2']) == (bin1,bin2):
+            biaslist.append(bias)
+
+#    if not UseFlat:
+    # list of all flats in flatdir
+    # base files
+    flatlist_all = glob(os.path.join(flatdir,'ccd*0.fits'))
+    # find all the flats with proper binning
+    flatlist = []
+    for flat in flatlist_all:
+        hdr = fits.getheader(flat)
+        if (hdr['CCDBIN1'],hdr['CCDBIN2']) == (bin1,bin2):
+            flatlist.append(flat)
+   
+#    if DarkSubtract:
+    if not UseDark:
+        # list of all darks in darkdir
+        darklist_all = glob(os.path.join(darkdir,'ccd*0.fits'))
+        # find all the darks with proper binning
+        darklist = []
+        for dark in darklist_all:
+            hdr = fits.getheader(dark)
             if (hdr['CCDBIN1'],hdr['CCDBIN2']) == (bin1,bin2):
-                biaslist.append(bias)
-
-    if not UseFlat:
-        # list of all flats in flatdir
-        flatlist_all = glob(os.path.join(flatdir,'*.fits'))
-        # find all the flats with proper binning
-        flatlist = []
-        for flat in flatlist_all:
-            hdr = pyfits.getheader(flat)
-            if (hdr['CCDBIN1'],hdr['CCDBIN2']) == (bin1,bin2):
-                flatlist.append(flat)
-
-    if DarkSubtract:
-        if not UseDarks:
-            # list of all darks in darkdir
-            darklist_all = glob(os.path.join(darkdir,'*.fits'))
-            # find all the darks with proper binning
-            darklist = []
-            for dark in darklist_all:
-                hdr = pyfits.getheader(dark)
-                if (hdr['CCDBIN1'],hdr['CCDBIN2']) == (bin1,bin2):
-                    darklist.append(dark)
-
+                darklist.append(dark)
+   
     # list of all science images in scidir
-    scilist_all = glob(os.path.join(directory,'*.fits'))
+    scilist_all = glob(os.path.join(directory,'ccd*0.fits'))
     # find all the science images with the proper binning
     scilist = []
     for sci in scilist_all:
-        hdr = pyfits.getheader(sci)
+        hdr = fits.getheader(sci)
         if (hdr['CCDBIN1'],hdr['CCDBIN2']) == (bin1,bin2):
             scilist.append(sci)
-
 
     ##########################
     ''' COMBINE THE BIASES '''
@@ -173,9 +188,8 @@ def main():
                 UseCal=MasterBias)
     
     else:
-        print 'Combining the biases'
+        print '\nCombining the biases'
         MasterBias = biasproc.bias_combine(biaslist, binning)
-        #MasterBias = 'Bias_%s.fits'%binning
         # add to log file?
         if LogSteps:
             create_log.logfile_cals(logfile, 'bias', biaslist, binning)
@@ -185,29 +199,41 @@ def main():
     ########################
     # make list of all images that need to be bias subtracted
     biasSub = []
-    # bias subtract the darks
+    bs_extension = bstr + '.fits'
     if DarkSubtract:
         if not UseDark:
+            # bias subtract the darks
             for dark in darklist:
-                if 'BIASSUB' not in pyfits.getheader(dark):
+                bs_dark = dark.replace('fits',bs_extension)
+                check_biassub = check_header(dark, 'BIASSUB')
+                if (os.path.exists(bs_dark) == 0) & (check_biassub == 0):
                     biasSub.append(dark)
     if not UseFlat:
         # bias subtract the flats
         for flat in flatlist:
-            if 'BIASSUB' not in pyfits.getheader(flat):
+            bs_flat = flat.replace('fits',bs_extension)
+            check_biassub = check_header(flat, 'BIASSUB')
+            if (os.path.exists(bs_flat) == 0) & (check_biassub == 0):
                 biasSub.append(flat)
     # bias subtract the science images
     for sci in scilist:
-        if 'BIASSUB' not in pyfits.getheader(sci):
+        bs_sci = sci.replace('fits',bs_extension)
+        check_biassub = check_header(sci, 'BIASSUB')
+        if (os.path.exists(bs_sci) == 0) & (check_biassub == 0):
             biasSub.append(sci)
-    
+
     if not biasSub:
-        print 'All images already bias-subtracted. Skipping.'
+        print '\nAll images already bias-subtracted. Skipping.'
     else:
-        print 'Bias subtracting images'
+        print '\nBias subtracting images'
         biasproc.bias_subtract(biasSub, MasterBias, SaveSteps=SaveSteps)
-    
-    
+
+    if SaveSteps:
+        flatlist = [x.replace('fits', bs_extension) for x in flatlist]
+        scilist = [x.replace('fits', bs_extension) for x in scilist]
+        if DarkSubtract:
+            darklist = [x.replace('fits', bs_extension) for x in darklist]
+
     if DarkSubtract:
         ##########################
         ''' COMBINE THE DARKS '''
@@ -221,14 +247,8 @@ def main():
                     UseCal=MasterDark)
     
         else:
-            print 'Combining the darks'
-            if SaveSteps:
-                darklist_save = [''.join([os.path.splitext(x)[0], '.bs.fits']) \
-                    for x in darklist]
-                MasterDark = darkproc.dark_combine(darklist_save, binning)
-            else:
-                MasterDark = darkproc.dark_combine(darklist, binning)
-            #MasterDark = 'Dark_%s.fits'%binning
+            print '\nCombining the darks'
+            MasterDark = darkproc.dark_combine(darklist, binning)
             # add to log file?
             if LogSteps:
                 create_log.logfile_cals(logfile, 'dark', darklist, binning)
@@ -238,22 +258,31 @@ def main():
         ########################
         # make list of all images that need to be dark subtracted
         darkSub = []
+        ds_extension = dstr + '.fits'
         if not UseFlat:
             # dark subtract the flats
             for flat in flatlist:
-                if 'DARKSUB' not in pyfits.getheader(flat):
+                ds_flat = flat.replace('fits',ds_extension)
+                check_darksub = check_header(flat, 'DARKSUB')
+                if (os.path.exists(ds_flat) == 0) & (check_darksub == 0):
                     darkSub.append(flat)
+
         # dark subtract the science images
         for sci in scilist:
-            if 'DARKSUB' not in pyfits.getheader(sci):
+            ds_sci = sci.replace('fits',ds_extension)
+            check_darksub = check_header(sci, 'DARKSUB')
+            if (os.path.exists(ds_sci) == 0) & (check_darksub == 0):
                 darkSub.append(sci)
-    
+
         if not darkSub:
-            print 'All images already dark-subtracted. Skipping.'
+            print '\nAll images already dark-subtracted. Skipping.'
         else:
-            print 'Dark subtracting images'
+            print '\nDark subtracting images'
             darkproc.dark_subtract(darkSub, MasterDark, SaveSteps=SaveSteps)
     
+        if SaveSteps:
+            flatlist = [x.replace('fits', ds_extension) for x in flatlist]
+            scilist = [x.replace('fits', ds_extension) for x in scilist]
     
     ###########################################################
     ''' COMBINE THE FLATS AND FLAT FIELD THE SCIENCE IMAGES '''
@@ -271,39 +300,35 @@ def main():
                     UseCal=MasterFlat)
             
         else:
-            print 'Combining the %s band flats' % f
+            print '\nCombining the %s band flats' % f
             # get list of flats for this filter
             flatlist_filt = [x for x in flatlist if get_filter(x) == f]
-####### NEEDS WORK:
-#######     creating lists of files to either combine or process
-#######     when SaveingSteps. Don't want to flat-field all *.fits,
-#######     just the ones that are *bs.fits or *ds.fits
-#######
-            if SaveSteps:
-                flatlist_save = [x for x in \
-                                 glob(os.path.join(flatdir,'*.bs.fits')) \
-                                 if x in flatlist_filt]
-                MasterFlat = flatproc.flat_combine(flatlist_save, f, binning)
-            else:
-                MasterFlat = flatproc.flat_combine(flatlist_filt, f, binning)
-            #MasterFlat = 'Flat%s_%s.fits' % (f, binning)
+            MasterFlat = flatproc.flat_combine(flatlist_filt, f, binning)
             # add to log file?
             if LogSteps:
                 create_log.logfile_cals(logfile, 'flat', flatlist_filt, 
                     binning, filt=f)
     
-        # check that science images have not already been flat fielded
+        #####################
+        ''' FLAT FIELDING '''
+        #####################
+        ff_extension = fstr + '.fits'
         flatField = []
         filtlist = [x for x in scilist if get_filter(x) == f]
         for sci in filtlist:
-            if 'FLATFLD' not in pyfits.getheader(sci):
+            ff_sci = sci.replace('fits',ff_extension)
+            check_flatfield = check_header(sci, 'FLATFLD')
+            if (os.path.exists(ff_sci) == 0) & (check_flatfield == 0):
                 flatField.append(sci)
-        if not flatField:
-            print 'Science images already flat-fielded. Skipping.'
-        else:
-            print 'Flat fielding the science images'
-            flatproc.flat_field(flatField, MasterFlat, SaveSteps=SaveSteps)
         
+        if not flatField:
+            print '\nScience images already flat-fielded. Skipping.'
+        else:
+            print '\nFlat fielding the science images'
+            flatproc.flat_field(flatField, MasterFlat, SaveSteps=SaveSteps)
+
+    if SaveSteps:
+        scilist = [x.replace('fits', ff_extension) for x in scilist]
     
     # add science images to log file?
     if LogSteps:
@@ -313,12 +338,13 @@ def main():
     # check that science images have not already been exptime normalized
     exptNorm = []
     for sci in scilist:
-        if 'EXPTNORM' not in pyfits.getheader(sci):
+        if 'EXPTNORM' not in fits.getheader(sci):
             exptNorm.append(sci)
+    
     if not exptNorm:
-        print 'Science images already exptime-normalized. Skipping.'
+        print '\nScience images already exptime-normalized. Skipping.'
     else:
-        print 'Normalizing images by their exposure times.'
+        print '\nNormalizing images by their exposure times.'
         for im in exptNorm:
             expt_norm(im)
     

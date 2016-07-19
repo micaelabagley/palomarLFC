@@ -1,6 +1,6 @@
 #! /usr/bin/env python
 import argparse
-import pyfits
+from astropy.io import fits
 import os
 from glob import glob
 import numpy as np
@@ -26,13 +26,13 @@ def bias_combine(biases, binning):
     output = os.path.join(os.path.dirname(biases[0]), 'Bias_%s.fits' % binning)
 
     # get basic header information
-    bhd = pyfits.getheader(biases[0])
+    bhd = fits.getheader(biases[0])
     nx = bhd['NAXIS1']
     ny = bhd['NAXIS2']
     median_array = np.zeros((nbias,ny,nx), dtype=float)
 
     for i,im in enumerate(biases):
-        bb,bhd = pyfits.getdata(im, header=True)
+        bb,bhd = fits.getdata(im, header=True)
         median_array[i,:,:] = bb
 
     Bias = np.median(median_array, axis=0)
@@ -41,7 +41,7 @@ def bias_combine(biases, binning):
     bhd['OBJECT'] = 'Master Bias'
     bhd['NCOMBINE'] = (nbias, 'Number of biases combined to form master bias')
     # write out master bias
-    pyfits.writeto(output, Bias, header=bhd, clobber=True)
+    fits.writeto(output, Bias, header=bhd, clobber=True)
     
     return output
 
@@ -56,12 +56,12 @@ def bias_subtract(imlist, MasterBias, SaveSteps=False):
        Default is to overwrite input image files.
     '''
     # read in Master Bias frame
-    Bias = pyfits.getdata(MasterBias)
+    Bias = fits.getdata(MasterBias)
 
     # get the date and time
     now = time.strftime('%c')
     for image in imlist:
-        im,hdr = pyfits.getdata(image, header=True)
+        im,hdr = fits.getdata(image, header=True)
         # write a keyword to header 
         biasstr = 'Bias subtracted: %s' % now
         hdr['BIASSUB'] = biasstr
@@ -73,7 +73,7 @@ def bias_subtract(imlist, MasterBias, SaveSteps=False):
             output = image
 
         new = im - Bias
-        pyfits.writeto(output, new, header=hdr, clobber=True)
+        fits.writeto(output, new, header=hdr, clobber=True)
     
     return
 

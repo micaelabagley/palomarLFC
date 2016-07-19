@@ -18,7 +18,7 @@
 import argparse
 import numpy as np
 from glob import glob
-import pyfits
+from astropy.io import fits
 import subprocess
 import os
 import shutil
@@ -56,7 +56,7 @@ def sex_to_deg(RA, Dec):
 
 def get_RADec(image):
     '''Get RA,Dec from image header'''
-    hdr = pyfits.getheader(image)
+    hdr = fits.getheader(image)
     RA = hdr['RA']
     Dec = hdr['DEC']
     decimalRA,decimalDec = sex_to_deg(RA, Dec)

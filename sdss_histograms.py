@@ -1,5 +1,5 @@
 #! /usr/bin/env python
-import pyfits
+from astropy.io import fits
 import numpy as np
 import os
 import matplotlib.pyplot as plt
@@ -69,7 +69,7 @@ def plot_limit(wispfield):
     ebins = np.arange(0, 2, 0.05)
 
     # read in SDSS catalog
-    cat = pyfits.open(os.path.join(wispfield, 'result.fits'))
+    cat = fits.open(os.path.join(wispfield, 'result.fits'))
     data = cat[1].data
     cat.close()
 

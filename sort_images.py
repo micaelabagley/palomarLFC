@@ -1,6 +1,7 @@
 #! /usr/bin/env python
+import argparse
 from astropy.table import Table
-import pyfits
+from astropy.io import fits
 from glob import glob
 import os
 
@@ -17,7 +18,7 @@ def extract_header(imlist):
     t = Table(data=None, names=names, dtype=datatype)
 
     for i,image in enumerate(imlist):
-        hdr = pyfits.getheader(image)
+        hdr = fits.getheader(image)
         imtype = hdr['IMAGETYP']
         obj = hdr['OBJECT']
         exptime = hdr['EXPTIME']
@@ -45,8 +46,8 @@ def extract_header(imlist):
 
     
 def sort_images(imlist):
-    '''Sort images into biases, 
-    '''
+    '''Sort images into biases, flats, science images'''
+    
 
 
 def sort_fields(imlist):
@@ -65,7 +66,16 @@ parnum = check.group(0)
 
 '''
 def main():
-    pass
+    parser = argparse.ArgumentParser(description='Sort images by image type.')
+    parser.add_argument('--dir', type=str, default='.', 
+        help='Directory in which      images are located')
+    args = parser.parse_args()
+    print args.dir
+
+    imlist = glob(os.path.join(args.dir, '*.fits'))
+    # extract info from headers
+    t = extract_header(imlist)
+
 
 if __name__ == '__main__':
     main()

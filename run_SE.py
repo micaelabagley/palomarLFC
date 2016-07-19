@@ -1,9 +1,10 @@
 #! /usr/bin/env python
 import os
 import subprocess
-import pyfits
+from astropy.io import fits
 import ConfigParser
 
+import palomarLFC
 
 def estimate_effective_gain(image):
     '''Estimate the effective gain of a combined image
@@ -14,14 +15,14 @@ def estimate_effective_gain(image):
        should be set to gain * total_exptime (Roy Gal; SE for Dummies)
     '''
     wispfield = os.path.dirname(image)
-    Palomar_gain = pyfits.getheader(image)['GAIN']
-    ims = pyfits.getheader(image)['IMCMB*']
+    Palomar_gain = fits.getheader(image)['GAIN']
+    ims = fits.getheader(image)['IMCMB*']
     exptime = 0.
     Nim = len(ims)
     for i in range(Nim):
         if os.path.splitext(ims[i])[1] != '.fits':
             ims[i] = ims[i] + '.fits'
-        exptime += pyfits.getheader(os.path.join(wispfield,ims[i]))['exptime']
+        exptime += fits.getheader(os.path.join(wispfield,ims[i]))['exptime']
     gain = Palomar_gain * Nim
     return gain
 
@@ -84,8 +85,11 @@ def run_SE(images, section, mode='single', updates={}):
         
        SE may be run in either single or dual-image mode
     '''
+    # directory containing SE files
+    dirSE = os.path.join(palomarLFC.__path__[0], 'SE_parameters')
+
     Config = ConfigParser.ConfigParser()
-    Config.read('SE_parameters.cfg')
+    Config.read(os.path.join(dirSE,'SE_parameters.cfg'))
     # the sections are 
     #   Calibration - for calibrating the images
     #   Catalog - for creating the final catalog               
@@ -94,9 +98,15 @@ def run_SE(images, section, mode='single', updates={}):
     for option in options:
         params[option] = Config.get(section, option)
 
+    # add absolute path to necessary SE files
+    params['-c'] = os.path.join(dirSE, Config.get(section, '-c'))
+    params['-parameters_name'] = os.path.join(dirSE, 'default.param')
+    params['-starnnw_name'] = os.path.join(dirSE, 'default.nnw')
+    params['-filter_name'] = os.path.join(dirSE, 'default.conv')
+    
     # add some parameters
     # pixscale
-    pixscale = pyfits.getheader(images[0])['SECPIX1']
+    pixscale = fits.getheader(images[0])['SECPIX1']
     params['-pixel_scale'] = '%f'%pixscale
 
     # override any parameters or add new ones?

@@ -17,7 +17,7 @@
 import argparse
 import numpy as np
 from glob import glob
-import pyfits
+from astropy.io import fits
 import subprocess,os,shutil
 from astropy.coordinates import SkyCoord,match_coordinates_sky
 import astropy.units as u
@@ -35,7 +35,7 @@ from datetime import datetime
 
 def read_cat(catfile):
     '''Read in fits tables'''
-    f = pyfits.open(catfile)
+    f = fits.open(catfile)
     cat = f[1].data
     f.close()
     return cat
@@ -46,13 +46,13 @@ def filter_combo(Palim, UVISims):
        determination of the color term.
     '''
     # get Palomar SDSS filters
-    hdr = pyfits.getheader(Palim[0])
+    hdr = fits.getheader(Palim[0])
     Pal_filt = hdr['FILTER'].rstrip("'")
     
     # get UVIS filters
     UVIS_filt = []
     for im in UVISims:
-        hdr = pyfits.getheader(im)
+        hdr = fits.getheader(im)
         UVIS_filt.append(hdr['FILTER'])
 
     # are both UVIS filters available?
@@ -85,7 +85,7 @@ def estimate_exptime(base):
     ims = data['l']
     exptime = 0.
     for i,v in enumerate(ims):
-        expt = pyfits.getheader(ims[i])['EXPTIME']
+        expt = fits.getheader(ims[i])['EXPTIME']
         exptime += expt
     # remove 1 or 2 images' worth of time to account for rejected pixels
     no_ims = len(ims)
@@ -103,7 +103,7 @@ def make_UVIS_rms(UVISim):
     whtim = UVISbase + '_wht.fits'
     rmsim = UVISbase + '_rms.fits'
 
-    HDUList = pyfits.open(UVISim)
+    HDUList = fits.open(UVISim)
     prihdr =  HDUList[0].header
     sci = HDUList['SCI'].data
     scihdr = HDUList['SCI'].header
@@ -113,9 +113,9 @@ def make_UVIS_rms(UVISim):
 
     # wht image
     # create new HDUList
-    newpri = pyfits.PrimaryHDU(header=prihdr)
-    whtdata = pyfits.PrimaryHDU(header=whthdr, data=wht)
-    whtlist = pyfits.HDUList(hdus=newpri)
+    newpri = fits.PrimaryHDU(header=prihdr)
+    whtdata = fits.PrimaryHDU(header=whthdr, data=wht)
+    whtlist = fits.HDUList(hdus=newpri)
     # append SCI data and header
     whtlist.append(whtdata)
     whtlist.update_extend()
@@ -123,8 +123,8 @@ def make_UVIS_rms(UVISim):
 
     # rms image
     rms = np.where(wht != 0, 1/np.sqrt(wht), np.nan)
-    rmsdata = pyfits.PrimaryHDU(header=whthdr, data=rms)
-    rmslist = pyfits.HDUList(hdus=newpri)
+    rmsdata = fits.PrimaryHDU(header=whthdr, data=rms)
+    rmslist = fits.HDUList(hdus=newpri)
     rmslist.append(rmsdata)
     rmslist.update_extend()
     rmslist.writeto(rmsim, clobber=True)
@@ -137,7 +137,7 @@ def get_zp(UVISim):
     HSTdate = datetime.strptime(photdate, '%Y-%m-%d')
 
     # get DATE-OBS from header
-    obsdate = pyfits.getheader(UVISim)['DATE-OBS']
+    obsdate = fits.getheader(UVISim)['DATE-OBS']
     date = datetime.strptime(obsdate, '%Y-%m-%d')
 
     zp = {}
@@ -161,10 +161,10 @@ def get_zp(UVISim):
 def run_SE(UVISim, Palim, wispfield):
     '''Run SExtractor on Palomar and UVIS images. '''
     # UVIS filter
-    filt = pyfits.getheader(UVISim)['FILTER']
+    filt = fits.getheader(UVISim)['FILTER']
     # pixscales
-    UVISps = pyfits.getheader(UVISim)['D001SCAL'] 
-    Palps = pyfits.getheader(Palim)['SECPIX1']
+    UVISps = fits.getheader(UVISim)['D001SCAL'] 
+    Palps = fits.getheader(Palim)['SECPIX1']
     # file names
     UVISbase = os.path.splitext(UVISim)[0]
     Palbase = os.path.splitext(Palim)[0]
@@ -175,7 +175,7 @@ def run_SE(UVISim, Palim, wispfield):
     UVISseg = UVISbase + '_calib_seg.fits'
 
     # exposure times
-    exptime_UVIS = pyfits.getheader(UVISim)['EXPTIME']
+    exptime_UVIS = fits.getheader(UVISim)['EXPTIME']
     # rough estimate for the exptime of the Palomar combined images
     exptime_Pal = estimate_exptime(Palbase)
 

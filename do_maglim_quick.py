@@ -34,7 +34,7 @@ def run_maglim(wispfield):
         # add in magnitude limit
         for image in images:
             # image filter
-            filt = pyfits.getheader(image)['FILTER'].rstrip("'")
+            filt = fits.getheader(image)['FILTER'].rstrip("'")
             # get 1 sigma limiting magnitude
             if len(images) == 1:
                 segmap = os.path.splitext(image)[0] + '_calib_seg.fits'

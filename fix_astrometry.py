@@ -18,7 +18,7 @@ import argparse
 import os
 from glob import glob
 import numpy as np
-import pyfits
+from astropy.io import fits
 from astropy.table import Table
 from match_cats import match_cats
 from run_SE import run_SE
@@ -27,7 +27,7 @@ from pyraf import iraf
 
 def read_cat(catfile):
     '''Read in fits tables'''
-    f = pyfits.open(catfile)
+    f = fits.open(catfile)
     cat = f[1].data
     f.close()
     return cat

@@ -1,5 +1,5 @@
 #! /usr/bin/env python
-import pyfits
+from astropy.io import fits
 import pywcs
 import numpy as np
 
@@ -9,7 +9,7 @@ def trim_image(image, cra, cdec, xsize, ysize, outname):
        Provide the center of the field and desired size
        xsize,ysize given in arcmin
     '''
-    im,hdr = pyfits.getdata(image, header=True)
+    im,hdr = fits.getdata(image, header=True)
     hdr_wcs = pywcs.WCS(hdr)
 
     # convert size to pixels
@@ -34,5 +34,5 @@ def trim_image(image, cra, cdec, xsize, ysize, outname):
 
     new = im[y1:y2,x1:x2]
 
-    pyfits.writeto(outname, new, header=hdr, clobber=True)
+    fits.writeto(outname, new, header=hdr, clobber=True)
 

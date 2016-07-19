@@ -1,6 +1,6 @@
 #! /usr/bin/env python
 import argparse
-import pyfits
+from astropy.io import fits
 import os
 from glob import glob
 import numpy as np
@@ -27,13 +27,13 @@ def dark_combine(darks, binning):
 
 
     # get basic header information
-    dhd = pyfits.getheader(darks[0])
+    dhd = fits.getheader(darks[0])
     nx = dhd['NAXIS1']
     ny = dhd['NAXIS2']
     median_array = np.zeros((ndarks,ny,nx), dtype=float)
 
     for i,im in enumerate(darks):
-        dd,dhd = pyfits.getdata(im, header=True)
+        dd,dhd = fits.getdata(im, header=True)
         exptime = dhd['EXPTIME']
         median_array[i,:,:] = dd / exptime
 
@@ -43,7 +43,7 @@ def dark_combine(darks, binning):
     dhd['OBJECT'] = 'Master Dark'
     dhd['NCOMBINE'] = (ndarks, 'Number of darks combined to form master dark')
     # write out master dark
-    pyfits.writeto(output, Dark, header=dhd, clobber=True)
+    fits.writeto(output, Dark, header=dhd, clobber=True)
 
     return output
 
@@ -59,12 +59,12 @@ def dark_subtract(imlist, MasterDark, SaveSteps=False):
        Default is to overwrite input image files.
     '''
     # read in Master Dark frame
-    Dark = pyfits.getdata(MasterDark)
+    Dark = fits.getdata(MasterDark)
 
     # get the date and time
     now = time.strftime('%c')
     for image in imlist:
-        im,hdr = pyfits.getdata(image, header=True)
+        im,hdr = fits.getdata(image, header=True)
         # write a keyword to header 
         darkstr = 'Dark subtracted: %s' % now
         hdr['DARKSUB'] = darkstr
@@ -79,7 +79,7 @@ def dark_subtract(imlist, MasterDark, SaveSteps=False):
         exptime = hdr['EXPTIME']
         ScaledDark = Dark * exptime
         new = im - ScaledDark
-        pyfits.writeto(output, new, header=hdr, clobber=True)
+        fits.writeto(output, new, header=hdr, clobber=True)
     
     return
 

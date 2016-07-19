@@ -27,7 +27,7 @@
 #######################################################################
 import argparse
 import numpy as np
-import pyfits
+from astropy.io import fits
 import subprocess
 import os
 from glob import glob
@@ -40,7 +40,7 @@ from align_images import run_wregister
 
 
 def get_filter(image):
-    hdr = pyfits.getheader(image)
+    hdr = fits.getheader(image)
     return hdr['FILTER'].rstrip("'")
 
 
@@ -48,7 +48,7 @@ def read_cat(catfile):
     '''Read in fits tables or ascii text files'''
     extension = os.path.splitext(catfile)[1]
     if extension == '.fits':
-        f = pyfits.open(catfile)
+        f = fits.open(catfile)
         cat = f[1].data
         f.close()
     if extension == '.cat':
@@ -71,7 +71,7 @@ def get_rdnoise(wispfield):
     biaslist = glob(os.path.join(wispfield,'Zero*.fits'))
     rd = np.zeros((len(biaslist)), dtype=float)
     for i,bias in enumerate(biaslist):
-        im = pyfits.getdata(bias)
+        im = fits.getdata(bias)
         im = im.flatten()
         # inefficient way to sigma clip the bias to remove crazy outliers
         im = im[np.where((im < np.median(im)+3*np.std(im)) & 
@@ -106,6 +106,8 @@ def get_rdnoise(wispfield):
         plt.close()
         """
     rdnoise = np.median(rd)
+    print rdnoise
+    exit()
     return rdnoise
 
 
@@ -172,8 +174,14 @@ def run_imcombine(wispfield, rejection, combine):
         #'''
 
         # get the gain and read noise to use for all images
-        gain = pyfits.getheader(new_list[0])['GAIN']
-        rdnoise = get_rdnoise(wispfield)
+        gain = fits.getheader(new_list[0])['GAIN']
+        # readnoise can be estimated from an averaged Bias
+        # this will vary from binned (RN ~ 8) to unbinned (RN ~ 12) images
+        # use average
+        rdnoise = 10
+        # get_rdnoise(wispfield)
+
+        print '\nCombining images using %s and %s rejection'%(combine,rejection)
 
         # get median sky values and airmasses 
         median_array = np.zeros((nim), dtype=float)
@@ -181,9 +189,9 @@ def run_imcombine(wispfield, rejection, combine):
         rd = np.zeros((nim), dtype=float)
         for i,image in enumerate(new_list):
             # get median 'sky' value
-            median_array[i] = np.median(pyfits.getdata(image))
+            median_array[i] = np.median(fits.getdata(image))
             # get airmass
-            airmass[i] = pyfits.getheader(image)['AIRMASS']
+            airmass[i] = fits.getheader(image)['AIRMASS']
 
         # sort the list by sky value
         #   image with lowest sky value should be listed first

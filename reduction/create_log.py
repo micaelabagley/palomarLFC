@@ -1,11 +1,11 @@
 #! /usr/bin/env python
 import time
-import pyfits
+from astropy.io import fits
 import os
 from glob import glob
 
 def get_filter(image):
-    hdr = pyfits.getheader(image)
+    hdr = fits.getheader(image)
     return hdr['FILTER'].rstrip("'")
 
 
@@ -94,7 +94,7 @@ def logfile_cals(logfile, caltype, imlist, binning, filt=None, UseCal=None):
             bin1,bin2 = (1,1)
         for im in sorted(unused):
             # check that unused image has the correct binning
-            hdr = pyfits.getheader(im)
+            hdr = fits.getheader(im)
             if (hdr['CCDBIN1'],hdr['CCDBIN2']) == (bin1,bin2):
                 log.write('    %s  - \n' % (os.path.basename(im)))
         log.write('\n')
@@ -124,9 +124,9 @@ def logfile_sci(logfile, imlist, SaveSteps=False):
     # for each file, print the image name, object type, exptime, and filter
     for i in range(nfiles):
         imname = os.path.splitext(os.path.basename(imlist[i]))[0]
-        obj = pyfits.getheader(imlist[i])['OBJECT']
-        exptime = pyfits.getheader(imlist[i])['EXPTIME']
-        filt = pyfits.getheader(imlist[i])['FILTER']
+        obj = fits.getheader(imlist[i])['OBJECT']
+        exptime = fits.getheader(imlist[i])['EXPTIME']
+        filt = fits.getheader(imlist[i])['FILTER']
         log.write('%s    %s   %.3f   %s \n' % (imname, obj, exptime, filt))
     log.write('\n')
     log.write('\n')

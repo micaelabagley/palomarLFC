@@ -19,7 +19,7 @@ import subprocess
 import os
 from glob import glob
 import numpy as np
-import pyfits
+from astropy.io import fits
 from pyraf.iraf import wregister
 
 

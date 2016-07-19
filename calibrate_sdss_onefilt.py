@@ -18,7 +18,7 @@ import argparse
 import os
 from glob import glob
 import numpy as np
-import pyfits
+from astropy.io import fits
 import matplotlib.pyplot as plt
 import matplotlib.ticker
 import matplotlib.gridspec as gridspec
@@ -31,7 +31,7 @@ from maglim import find_maglim
 
 def read_cat(catfile):
     '''Read in fits tables'''
-    f = pyfits.open(catfile)
+    f = fits.open(catfile)
     cat = f[1].data
     f.close()
     return cat
@@ -309,7 +309,7 @@ def main():
 
     print '\nCalibrating:   %s\n' % images
 
-    filt = pyfits.getheader(images[0])['FILTER'].rstrip("'")
+    filt = fits.getheader(images[0])['FILTER'].rstrip("'")
 
     # Run SE on Palomar image
     run_SE([images[0]], 'Calibration', mode='single')

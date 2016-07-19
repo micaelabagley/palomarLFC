@@ -1,7 +1,7 @@
 #! /usr/bin/env python
 import argparse
 import numpy as np
-import pyfits
+from astropy.io import fits
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 from matplotlib.ticker import AutoMinorLocator
@@ -58,8 +58,8 @@ def photometry(image, segmap, naper, rad, zp):
               'move=1 delete=1 include=1 source=1 \n')
     reg.write('image \n')
 
-    im,hdr = pyfits.getdata(image, header=True)
-    seg,shdr = pyfits.getdata(segmap, header=True)
+    im,hdr = fits.getdata(image, header=True)
+    seg,shdr = fits.getdata(segmap, header=True)
     xx = np.random.randint(hdr['NAXIS1']-20, size=naper) + 10
     yy = np.random.randint(hdr['NAXIS2']-20, size=naper) + 10
  
@@ -146,7 +146,7 @@ def fit_gaussian(flux, ax, left=False):
 def find_maglim(image, segmap, zp, wispfield, rad=2.5, naper=5000):
     ''' '''
     print 'Finding limiting magnitude of %s'%image
-    filt = pyfits.getheader(image)['FILTER'].rstrip("'")
+    filt = fits.getheader(image)['FILTER'].rstrip("'")
 
     # set up plot
     fig = plt.figure(figsize=(8,6.5))

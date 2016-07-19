@@ -5,7 +5,7 @@ import os
 import shutil
 import re
 import numpy as np
-import pyfits
+from astropy.io import fits
 import pywcs
 from astropy.table import Table
 from astropy.io import ascii
@@ -15,7 +15,7 @@ from maglim import find_maglim
 from trim_images import trim_image
 
 def get_filter(image):
-    hdr = pyfits.getheader(image)
+    hdr = fits.getheader(image)
     return hdr['FILTER'].rstrip("'")
 
 
@@ -23,7 +23,7 @@ def read_cat(catfile):
     '''Read in fits tables or ascii text files'''
     extension = os.path.splitext(catfile)[1]
     if extension == '.fits':
-        f = pyfits.open(catfile)
+        f = fits.open(catfile)
         cat = f[1].data
         f.close()
     if extension == '.cat':
@@ -53,7 +53,7 @@ def fix_header(image, wispfield):
        Add the total exposure time of the combined images to 
        the header
     '''
-    im,hdr = pyfits.getdata(image, header=True)
+    im,hdr = fits.getdata(image, header=True)
     nx1 = hdr['NAXIS1']
     nx2 = hdr['NAXIS2']
     hdr['DATASEC'] = '[1:%i,1:%i]' % (nx1-1, nx2-1)
@@ -66,17 +66,17 @@ def fix_header(image, wispfield):
         for i in range(Nim):
             if os.path.splitext(ims[i])[1] != '.fits':
                 ims[i] = ims[i] + '.fits'
-            thdr = pyfits.getheader(os.path.join(wispfield,ims[i]))
+            thdr = fits.getheader(os.path.join(wispfield,ims[i]))
             texptime += thdr['exptime']
         hdr.insert(19, ('TEXPTIME', texptime,
                                'Total EXPTIME of combined images'))
-    pyfits.writeto(image, im, hdr, clobber=True)
+    fits.writeto(image, im, hdr, clobber=True)
     
 
 def image_limits(image, wispfield):
     '''Find the '''
     # read in combined image
-    hdr = pyfits.getheader(image)
+    hdr = fits.getheader(image)
     hdr_wcs = pywcs.WCS(hdr)
     # list of images that were combined
     ims = hdr['IMCMB*']
@@ -86,7 +86,7 @@ def image_limits(image, wispfield):
     for i in range(Nim):
         if os.path.splitext(ims[i])[1] != '.fits':
             ims[i] = ims[i] + '.fits'
-        hd = pyfits.getheader(os.path.join(wispfield,ims[i]))
+        hd = fits.getheader(os.path.join(wispfield,ims[i]))
         nx1 = hd['NAXIS1']
         nx2 = hd['NAXIS2']
         hd_wcs = pywcs.WCS(hd)
@@ -374,7 +374,7 @@ def make_cat(info, WISPfilters, threshold, wispfield):
 
         # trim images
         WISPimage = info['WISPim']
-        WISPim,WISPhdr = pyfits.getdata(WISPimage, header=True)
+        WISPim,WISPhdr = fits.getdata(WISPimage, header=True)
         cRA = WISPhdr['CRVAL1'] 
         cDec = WISPhdr['CRVAL2']
         xsize,ysize = 3.,3.

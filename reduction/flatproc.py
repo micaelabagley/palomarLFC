@@ -1,6 +1,6 @@
 #! /usr/bin/env python
 import argparse
-import pyfits
+from astropy.io import fits
 import os
 from glob import glob
 import numpy as np
@@ -17,6 +17,8 @@ def flat_combine(flats, filt, binning):
     '''
     # are there enough flats for median combining?
     nflats = len(flats)
+    print flats
+    print nflats
     if nflats < 3:
         print 'There are not enough flats to median combine ' +\
             '(fewer than 3 flats) '
@@ -27,13 +29,13 @@ def flat_combine(flats, filt, binning):
                           'Flat%s_%s.fits' % (filt,binning))
 
     # get basic header information
-    fhd = pyfits.getheader(flats[0])
+    fhd = fits.getheader(flats[0])
     nx = fhd['NAXIS1']
     ny = fhd['NAXIS2']
     median_array = np.zeros((nflats,ny,nx), dtype=float)
 
     for i,im in enumerate(flats):
-        ff,fhd = pyfits.getdata(im, header=True)
+        ff,fhd = fits.getdata(im, header=True)
         # check that median of image is != 0
         med = np.median(ff)
         if med == 0:
@@ -48,7 +50,7 @@ def flat_combine(flats, filt, binning):
     fhd['OBJECT'] = 'Master %s Band Flat'%filt
     fhd['NCOMBINE'] = (nflats, 'Number of flats combined to form master flat')
     # write out master flat
-    pyfits.writeto(output, Flat, header=fhd, clobber=True)
+    fits.writeto(output, Flat, header=fhd, clobber=True)
 
     return output
 
@@ -63,7 +65,7 @@ def flat_field(imlist, MasterFlat, SaveSteps=False):
        Default is to overwrite input image files.
     '''
     # read in Master Flat frame
-    Flat = pyfits.getdata(MasterFlat)
+    Flat = fits.getdata(MasterFlat)
 
     # check the flat for zeros, replace with median of flat
     Flat[Flat == 0.] = np.median(Flat)
@@ -72,7 +74,7 @@ def flat_field(imlist, MasterFlat, SaveSteps=False):
     # get the date and time
     now = time.strftime('%c')
     for image in imlist:
-        im,hdr = pyfits.getdata(image, header=True)
+        im,hdr = fits.getdata(image, header=True)
         # write a keyword to header 
         flatstr = 'Flat fielded: %s' % now
         hdr['FLATFLD'] = flatstr
@@ -84,7 +86,7 @@ def flat_field(imlist, MasterFlat, SaveSteps=False):
             output = image
 
         new = im / Flat
-        pyfits.writeto(output, new, header=hdr, clobber=True)
+        fits.writeto(output, new, header=hdr, clobber=True)
     
     return
 
